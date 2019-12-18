@@ -10,6 +10,13 @@ import Json.Encode as E
 import Ports
 
 
+decodeFragmentFromUrl : Url.Url -> Cmd Msg
+decodeFragmentFromUrl url =
+    case url.fragment of
+        Nothing -> Cmd.none
+        Just fragment -> Ports.decodeFragment (E.string fragment)
+
+
 -- MAIN
 
 
@@ -35,18 +42,14 @@ type alias Model =
   , loadedFragment : Maybe String
   }
 
-
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
   ( { key=key
     , url=url
     , loadedFragment=Nothing
     }
-  , case url.fragment of
-      Nothing -> Cmd.none
-      Just fragment -> Ports.decodeFragment (E.string fragment)
+  , Ports.decodeFragment <| E.string <| Maybe.withDefault "" url.fragment
   )
-
 
 
 -- UPDATE
@@ -56,6 +59,7 @@ type Msg
   = LinkClicked Browser.UrlRequest
   | UrlChanged Url.Url
   | FragmentDecoded String
+  | SetFragment String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -64,19 +68,24 @@ update msg model =
     LinkClicked urlRequest ->
       case urlRequest of
         Browser.Internal url ->
-          ( model, Nav.pushUrl model.key (Url.toString url) )
+          ( model, Nav.pushUrl model.key (Debug.log "pushing url" (Url.toString url)) )
 
         Browser.External href ->
           ( model, Nav.load href )
 
     UrlChanged url ->
-      ( { model | url = url }
-      , Cmd.none
+      ( { model | url = url, loadedFragment=Nothing }
+      , decodeFragmentFromUrl url
       )
 
     FragmentDecoded s ->
       ( { model | loadedFragment = Just s }
       , Cmd.none
+      )
+
+    SetFragment s ->
+      ( model
+      , Nav.pushUrl model.key (Url.toString (let u=model.url in {u|fragment=Just s}))
       )
 
 
@@ -87,9 +96,14 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-  Ports.fragmentDecoded (\enc -> case D.decodeValue D.string enc of
-      Ok s -> FragmentDecoded s
-      Err e -> FragmentDecoded (Debug.toString e))
+  Sub.batch
+    [ Ports.fragmentDecoded (\enc -> case D.decodeValue D.string enc of
+        Ok s -> FragmentDecoded (Debug.log "ok" s)
+        Err e -> FragmentDecoded (Debug.toString (Debug.log "err" e)))
+    , Ports.desiredFragmentSet (\enc -> case D.decodeValue D.string enc of
+        Ok s -> SetFragment (Debug.log "setting fragment" s)
+        Err e -> Debug.todo "oh no")
+    ]
 
 
 
@@ -100,9 +114,7 @@ view : Model -> Browser.Document Msg
 view model =
   { title = "URL Interceptor"
   , body =
-      [ text "The current hash is: "
-      , b [] [ model.url.fragment |> Maybe.withDefault "" |> text ]
-      , iframe [srcdoc (model.url.fragment |> Maybe.withDefault "loading...")] []
+      [ iframe [srcdoc (model.loadedFragment |> Maybe.withDefault "loading...")] []
       , ul []
           [ viewLink "/home"
           , viewLink "/profile"

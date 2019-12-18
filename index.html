@@ -3,25 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <title>Main</title>
-  <link rel="stylesheet" href="whatever-you-want.css">
+  <script src="static/lzma/lzma-d-min.js"></script>
+  <script src="static/lzma/lzma_worker-min.js"></script>
   <script src="dist/main.js"></script>
 </head>
 
 <body>
   <div id="elm"></div>
   <script>
+  function base64ToByteArray(base64) {
+    var raw = window.atob(base64);
+    var rawLength = raw.length;
+    var array = new Uint8Array(new ArrayBuffer(rawLength));
+    for(i = 0; i < rawLength; i++) {
+      array[i] = raw.charCodeAt(i);
+    }
+    return array;
+  }
+
+  function zipToString(data, callback) {
+    var array = base64ToByteArray(data);
+    LZMA.decompress(array, function(result, error) {
+      if (!(typeof result === 'string')) result = new Uint8Array(result)
+      if (error) console.error(error);
+      callback(result);
+    });
+  }
+
   var app = Elm.Main.init({
     node: document.getElementById('elm')
   });
   app.ports.decodeFragment.subscribe(function(data) {
     console.log("decoding", {data});
-    setTimeout(
-      function() {
-        app.ports.fragmentDecoded.send(data);
-        console.log("decoded", {data});
-      },
-      1000,
-    )
+    if (data == "") {
+      app.ports.fragmentDecoded.send("");
+      return;
+    }
+    console.log("decoding", {data});
+    zipToString(data, function(decoded) {
+        app.ports.fragmentDecoded.send(decoded);
+        console.log("decoded", {decoded});
+    });
+  });
+
+  window.addEventListener('paste', function(event) {
+    var data = (event.clipboardData || window.clipboardData)
+    var decoded = data.getData('text/html') || data.getData('text');
+    console.log("compressing", {decoded});
+    LZMA.compress(decoded, 9, function(encoded, error) {
+      if (error) console.error(error);
+      var base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(encoded)));
+      app.ports.desiredFragmentSet.send(base64String);
+      console.log("compressed", {base64String});
+    });
   });
 
   </script>
