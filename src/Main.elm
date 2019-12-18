@@ -114,14 +114,20 @@ view : Model -> Browser.Document Msg
 view model =
   { title = "URL Interceptor"
   , body =
-      [ iframe [srcdoc (model.loadedFragment |> Maybe.withDefault "loading...")] []
-      , ul []
-          [ viewLink "/home"
-          , viewLink "/profile"
-          , viewLink "/reviews/the-century-of-the-self"
-          , viewLink "/reviews/public-opinion"
-          , viewLink "/reviews/shah-of-shahs"
+      [ text "Click here and paste to make a new page."
+      , br [] []
+      , text "Don't trust the red box any more than you trust the link you clicked on."
+      , iframe
+          [ srcdoc (model.loadedFragment |> Maybe.withDefault "loading...")
+          , style "border" "1px solid red"
+          , style "margin" "4em 1% 1% 1%"
+          , style "position" "absolute"
+          , style "top" "0"
+          , style "left" "0"
+          , style "width" "98%"
+          , style "height" "95%"
           ]
+          []
       ]
   }
 
