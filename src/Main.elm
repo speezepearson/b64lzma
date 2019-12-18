@@ -112,7 +112,7 @@ subscriptions _ =
 
 view : Model -> Browser.Document Msg
 view model =
-  { title = "URL Interceptor"
+  { title = "Elm-Ittybitty"
   , body =
       [ text "Click here and paste to make a new page."
       , br [] []
