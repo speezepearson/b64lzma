@@ -11,6 +11,9 @@
 <body>
   <div id="elm"></div>
   <script>
+  function debugLog(...xs) {
+    console.log(...xs)
+  }
   function base64ToByteArray(base64) {
     var raw = window.atob(base64);
     var rawLength = raw.length;
@@ -33,29 +36,31 @@
   var app = Elm.Main.init({
     node: document.getElementById('elm')
   });
-  app.ports.decodeFragment.subscribe(function(data) {
-    console.log("decoding", {data});
+  app.ports.decodeFragmentPort.subscribe(function(data) {
+    debugLog("decoding", {data});
     if (data == "") {
-      app.ports.fragmentDecoded.send("");
+      app.ports.fragmentDecodedPort.send("");
       return;
     }
-    console.log("decoding", {data});
+    debugLog("decoding", {data});
     zipToString(data, function(decoded) {
-        app.ports.fragmentDecoded.send(decoded);
-        console.log("decoded", {decoded});
+        app.ports.fragmentDecodedPort.send({fragment: data, pageInfo: {title: "", body: decoded}});
+        debugLog("decoded", {decoded});
     });
   });
+  app.ports.encodePageInfoPort.subscribe(function(pageInfo) {
+    LZMA.compress(pageInfo.body, 9, function(encoded, error) {
+      if (error) console.error(error);
+      var base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(encoded)));
+      app.ports.pageInfoEncodedPort.send({fragment: base64String, pageInfo: pageInfo});
+      debugLog("compressed", {base64String});
+    });
+  })
 
   window.addEventListener('paste', function(event) {
     var data = (event.clipboardData || window.clipboardData)
-    var decoded = data.getData('text/html') || data.getData('text');
-    console.log("compressing", {decoded});
-    LZMA.compress(decoded, 9, function(encoded, error) {
-      if (error) console.error(error);
-      var base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(encoded)));
-      app.ports.desiredFragmentSet.send(base64String);
-      console.log("compressed", {base64String});
-    });
+    var text = data.getData('text/html') || data.getData('text');
+    app.ports.userPastedPort.send(text);
   });
 
   </script>
