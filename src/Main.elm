@@ -8,13 +8,20 @@ import Json.Decode as D
 import Json.Encode as E
 
 import Ports
-import Types exposing (Fragment, PageInfo)
+import Types exposing (Fragment, PageInfo, EncodingRelation, nilEncodingRelation)
 
 
 decodeFragmentFromUrl : Url.Url -> Cmd Msg
 decodeFragmentFromUrl url =
     Maybe.withDefault Cmd.none
         <| Maybe.map Ports.decodeFragment url.fragment
+
+pushUrl : Nav.Key -> Url.Url -> Cmd msg
+pushUrl key url =
+    Nav.pushUrl key (Debug.log "pushing url" (Url.toString url))
+
+setFragment : Fragment -> Url.Url -> Url.Url
+setFragment fragment url = { url | fragment=Just fragment }
 
 
 -- MAIN
@@ -36,23 +43,29 @@ main =
 -- MODEL
 
 
-type PageInfoState = Decoding | Decoded PageInfo
+type SavedState = Decoding Fragment | Encoding PageInfo | Stable EncodingRelation
 
 type alias Model =
   { key : Nav.Key
   , url : Url.Url
-  , pageInfoState : PageInfoState
+  , savedState : SavedState
   }
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-  ( { key = key
-    , url = url
-    , pageInfoState = Decoding
-    }
-  , decodeFragmentFromUrl url
-  )
+    startDecoding url { key=key, url=url, savedState=Stable nilEncodingRelation }
 
+startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
+startDecoding url model =
+    case url.fragment of
+        Nothing ->
+            ( { model | url = url, savedState = Stable nilEncodingRelation }
+            , Cmd.none
+            )
+        Just fragment ->
+            ( { model | url = url, savedState = Decoding fragment }
+            , Ports.decodeFragment fragment
+            )
 
 -- UPDATE
 
@@ -60,8 +73,8 @@ init flags url key =
 type Msg
   = LinkClicked Browser.UrlRequest
   | UrlChanged Url.Url
-  | FragmentDecoded Ports.EncodingRelation
-  | PageInfoEncoded Ports.EncodingRelation
+  | FragmentDecoded EncodingRelation
+  | PageInfoEncoded EncodingRelation
   | UserPasted String
   | Ignore -- TODO: have better error handling
 
@@ -72,27 +85,27 @@ update msg model =
     LinkClicked urlRequest ->
       case urlRequest of
         Browser.Internal url ->
-          ( model, Nav.pushUrl model.key (Debug.log "pushing url" (Url.toString url)) )
+          ( model, pushUrl model.key url )
 
         Browser.External href ->
           ( model, Nav.load href )
 
     UrlChanged url ->
-      ( { model | url = (Debug.log "set url" url), pageInfoState = Decoding }
-      , decodeFragmentFromUrl url
-      )
+        case (url.fragment, model.savedState) of
+            (Just fragment, Stable relation) ->
+                if fragment == relation.fragment
+                    then (model, Cmd.none)
+                    else startDecoding url model
+            _ -> startDecoding url model
 
-    FragmentDecoded {fragment, pageInfo} ->
-      ( { model | pageInfoState = Decoded pageInfo }
+    FragmentDecoded relation ->
+      ( { model | savedState = Stable relation }
       , Cmd.none
       )
 
-    PageInfoEncoded {fragment, pageInfo} ->
-      let
-        url = let u=model.url in {u | fragment=Just fragment}
-      in
-        ( { model | url = url}
-        , Nav.pushUrl model.key (Debug.log "pushing url" (Url.toString url))
+    PageInfoEncoded relation ->
+        ( { model | savedState = Stable relation }
+        , pushUrl model.key (setFragment relation.fragment model.url)
         )
 
     UserPasted body ->
@@ -100,8 +113,8 @@ update msg model =
         pageInfo : PageInfo
         pageInfo = {title="", body=body}
       in
-        ( { model | pageInfoState = Decoded pageInfo }
-        , Ports.encodePageInfo pageInfo
+        ( { model | savedState = Encoding pageInfo }
+        , Ports.encodePageInfo (Debug.log "encoding" pageInfo)
         )
 
     Ignore ->
@@ -129,9 +142,10 @@ subscriptions _ =
 view : Model -> Browser.Document Msg
 view model =
   let
-    (title, body) = case (Debug.log "page info state" model.pageInfoState) of
-        Decoding -> ("", "")
-        Decoded info -> (info.title, info.body)
+    {title, body} = case (Debug.log "page info state" model.savedState) of
+        Decoding fragment -> {title="", body="<decoding...>"}
+        Encoding pageInfo -> {title="", body="<encoding...>"}
+        Stable {pageInfo} -> pageInfo
   in
     { title = "Elm-Ittybitty"
     , body =

@@ -3,12 +3,7 @@ port module Ports exposing (..)
 import Json.Decode as D
 import Json.Encode as E
 
-import Types exposing (Fragment, PageInfo)
-
-type alias EncodingRelation =
-    { fragment : Fragment
-    , pageInfo : PageInfo
-    }
+import Types exposing (Fragment, PageInfo, EncodingRelation)
 
 pageInfoDecoder : D.Decoder PageInfo
 pageInfoDecoder =
