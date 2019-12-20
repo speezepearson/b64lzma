@@ -2,6 +2,7 @@ import Browser
 import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events
 import Url
 import Json.Decode as D
 import Json.Encode as E
@@ -169,9 +170,26 @@ view model =
   in
     { title = "EIB" ++ (if String.isEmpty title then "" else (": " ++ title))
     , body =
-        [ text "Click here and paste to make a new page."
-        , br [] []
-        , text "Don't trust the red box any more than you trust the link you clicked on."
+        [ div
+            [ style "width" "100%"
+            , style "display" "flex"
+            , style "flex-direction" "row"
+            , style "justify-content" "space-between"
+            ]
+            [ div [style "max-width" "30%"] [text "Don't trust the red box any more than you trust the link you clicked on."]
+            , div [style "width" "40%"] [textarea [ placeholder "Title"
+                                                  , value title
+                                                  , style "text-align" "center"
+                                                  , style "font-weight" "700"
+                                                  , style "font-size" "1em"
+                                                  , style "width" "100%"
+                                                  , style "resize" "none"
+                                                  , style "border" "0"
+                                                  , Html.Events.stopPropagationOn "paste" (D.succeed (Ignore, True))
+                                                  ]
+                                                  [] ]
+            , div [style "max-width" "30%", style "color" "gray"] [text "Paste anywhere to set the page content."]
+            ]
         , iframe
             [ srcdoc body
             , style "border" "1px solid red"
