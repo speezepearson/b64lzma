@@ -36,24 +36,19 @@
   var app = Elm.Main.init({
     node: document.getElementById('elm')
   });
-  app.ports.decodeFragmentPort.subscribe(function(data) {
-    debugLog("decoding", {data});
-    if (data == "") {
-      app.ports.fragmentDecodedPort.send("");
-      return;
-    }
-    debugLog("decoding", {data});
-    zipToString(data, function(decoded) {
-        app.ports.fragmentDecodedPort.send({fragment: data, pageInfo: {title: "", body: decoded}});
-        debugLog("decoded", {decoded});
+  app.ports.b64LzmaDecodePort.subscribe(function(encoded) {
+    debugLog("decoding", {encoded});
+    zipToString(encoded, function(plaintext) {
+        app.ports.b64LzmaResultPort.send({plaintext, encoded});
+        debugLog("decoded", {plaintext});
     });
   });
-  app.ports.encodePageInfoPort.subscribe(function(pageInfo) {
-    LZMA.compress(pageInfo.body, 9, function(encoded, error) {
+  app.ports.b64LzmaEncodePort.subscribe(function(plaintext) {
+    LZMA.compress(plaintext, 9, function(lzmaEncoded, error) {
       if (error) console.error(error);
-      var base64String = btoa(String.fromCharCode.apply(null, new Uint8Array(encoded)));
-      app.ports.pageInfoEncodedPort.send({fragment: base64String, pageInfo: pageInfo});
-      debugLog("compressed", {base64String});
+      var encoded = btoa(String.fromCharCode.apply(null, new Uint8Array(lzmaEncoded)));
+      app.ports.b64LzmaResultPort.send({plaintext, encoded});
+      debugLog("compressed", {encoded});
     });
   })
 
