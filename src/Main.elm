@@ -141,7 +141,7 @@ subscriptions model =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "EIB" ++ (if String.isEmpty model.title then "" else (": " ++ model.title))
+    { title = if String.isEmpty model.title then "Elm-Ittybitty" else model.title
     , body =
         [ div
             [ style "width" "100%"
