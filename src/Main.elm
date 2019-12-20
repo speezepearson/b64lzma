@@ -162,7 +162,7 @@ view model =
         NoFragment -> {title="", body=""}
         InvalidFragment -> {title="", body="<invalid fragment>"}
   in
-    { title = "Elm-Ittybitty"
+    { title = "EIB" ++ (if String.isEmpty title then "" else (": " ++ title))
     , body =
         [ text "Click here and paste to make a new page."
         , br [] []

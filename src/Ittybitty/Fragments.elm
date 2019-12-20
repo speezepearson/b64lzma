@@ -19,7 +19,10 @@ type ParseError = ParseError
 
 build : String -> B64Lzma -> Fragment
 build title encodedBody =
-    Fragment {title=title, encodedBody=encodedBody} -- TODO: mangle title like Ittybitty
+    Fragment
+        { title = title |> String.trim |> String.replace " " "_" |> Url.percentEncode
+        , encodedBody = encodedBody
+        }
 
 getTitle : Fragment -> String
 getTitle (Fragment {title}) = title
@@ -37,7 +40,7 @@ parse s =
     case List.head (String.indexes "/" s) of
         Nothing -> Err ParseError
         Just i -> Ok <| Fragment <|
-            { title = String.left i s -- TODO: mangle title like Ittybitty
+            { title = String.left i s |> Url.percentDecode |> Maybe.withDefault "" |> String.replace "_" " "
             , encodedBody = B64Lzma <| String.dropLeft (i+1) s
             }
 
