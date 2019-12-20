@@ -57,13 +57,11 @@ startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
 startDecoding url model =
     case Fragments.parseUrl url of
         Nothing ->
-            ( { model | url=url, title="", body="" }
-            , Cmd.none
-            )
-        Just (Err _) ->
             ( { model | url=url }
             , Cmd.none
             )
+        Just (Err e) ->
+            Debug.todo <| "invalid fragment in URL: " ++ Url.toString url
         Just (Ok fragment) ->
             ( { model | url=url, title=Fragments.getTitle fragment }
             , B64Lzma.decode <| Fragments.getEncodedBody fragment
@@ -80,7 +78,7 @@ type Msg
   | Encoded B64Lzma.EncodingRelation
   | UserPasted String
   | TitleAltered String
-  | Ignore -- TODO: have better error handling
+  | Ignore
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -129,8 +127,8 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ B64Lzma.decoded (Result.map Decoded >> Result.withDefault Ignore)
-        , B64Lzma.encoded (Result.map Encoded >> Result.withDefault Ignore)
+        [ B64Lzma.decoded (Result.map Decoded >> Result.mapError (Debug.log "error parsing decoded response") >> Result.withDefault Ignore)
+        , B64Lzma.encoded (Result.map Encoded >> Result.mapError (Debug.log "error parsing encoded response") >> Result.withDefault Ignore)
         , Clipboard.userPasted (Result.map UserPasted >> Result.withDefault Ignore)
         ]
 
