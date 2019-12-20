@@ -60,16 +60,16 @@ init flags url key =
 startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
 startDecoding url model =
     let
-        translationState : TranslationState
-        translationState =
+        (translationState, cmd) =
             case Fragments.parseUrl url of
-                Nothing -> NoFragment
-                Just (Err _) -> InvalidFragment
-                Just (Ok fragment) -> Decoding fragment
-
-        cmd = case translationState of
-            Decoding fragment -> Fragments.getEncodedBody fragment |> B64Lzma.b64LzmaDecode
-            _ -> Cmd.none
+                Nothing ->
+                    ( NoFragment, Cmd.none )
+                Just (Err _) ->
+                    ( InvalidFragment, Cmd.none )
+                Just (Ok fragment) ->
+                    ( Decoding fragment
+                    , Fragments.getEncodedBody fragment |> B64Lzma.b64LzmaDecode
+                    )
     in
         ( { model | url=url, translationState=translationState }
         , cmd
