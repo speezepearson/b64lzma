@@ -159,10 +159,16 @@ view model =
                                                   , style "resize" "none"
                                                   , style "border" "0"
                                                   , Html.Events.onInput TitleAltered
-                                                  , Html.Events.stopPropagationOn "paste" (D.succeed (Ignore, True))
                                                   ]
                                                   [] ]
-            , div [style "width" "30%", style "color" "gray", style "text-align" "right"] [text "Paste anywhere to set the page content."]
+            , div [style "width" "30%", style "color" "gray", style "text-align" "right"]
+                [ input [ value ""
+                        , style "width" "100%"
+                        , placeholder "Paste here to set the page content."
+                        , id "body-setter"
+                        ]
+                        []
+                ]
             ]
         , iframe
             [ srcdoc model.body
