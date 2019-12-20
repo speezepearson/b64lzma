@@ -8,6 +8,7 @@ module Ittybitty.Fragments exposing
     , toString
     , parseUrl
     , addToUrl
+    , mapUrl
     )
 
 import Url
@@ -54,3 +55,10 @@ parseUrl url =
 addToUrl : Maybe Fragment -> Url.Url -> Url.Url
 addToUrl fragment url =
     { url | fragment = fragment |> Maybe.map toString }
+
+mapUrl : (Fragment -> Fragment) -> Url.Url -> Url.Url
+mapUrl f url =
+    case parseUrl url of
+        Nothing -> url
+        Just (Err _) -> url
+        Just (Ok fragment) -> addToUrl (Just (f fragment)) url

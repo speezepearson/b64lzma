@@ -13,9 +13,9 @@ import Ittybitty.Fragments as Fragments exposing (Fragment)
 import Ittybitty.PageInfo exposing (PageInfo, EncodingRelation)
 
 
-pushUrl : Nav.Key -> Url.Url -> Cmd msg
-pushUrl key url =
-    Nav.pushUrl key (Debug.log "pushing url" (Url.toString url))
+replaceUrl : Nav.Key -> Url.Url -> Cmd msg
+replaceUrl key url =
+    Nav.replaceUrl key (Debug.log "pushing url" (Url.toString url))
 
 setFragment : Fragment -> Url.Url -> Url.Url
 setFragment fragment url =
@@ -41,62 +41,33 @@ main =
 -- MODEL
 
 
-type TranslationState
-    = NoFragment
-    | InvalidFragment
-    | Decoding Fragment
-    | Encoding PageInfo
-    | Stable (Fragment, PageInfo)
-
 type alias Model =
   { key : Nav.Key
   , url : Url.Url
-  , titleField : String
-  , translationState : TranslationState
+  , title : String
+  , body : String
+  -- , errors: List String
   }
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-    startDecoding url {key=key, titleField="", url=url, translationState=NoFragment}
+    startDecoding url {key=key, url=url, title="", body=""}
 
 startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
 startDecoding url model =
-    let
-        newFragment = case Fragments.parseUrl url of
-            Just (Ok fragment) -> Just fragment
-            _ -> Nothing
-        needsDecode =
-            case (newFragment, model.translationState) of
-                (Just fragment, Stable (oldFragment, _)) ->
-                    Fragments.getEncodedBody oldFragment /= Fragments.getEncodedBody fragment
-                _ -> True
-    in
-        if needsDecode then
-            let
-                (translationState, cmd) =
-                    case Fragments.parseUrl url of
-                        Nothing ->
-                            ( NoFragment, Cmd.none )
-                        Just (Err _) ->
-                            ( InvalidFragment, Cmd.none )
-                        Just (Ok fragment) ->
-                            ( Decoding fragment
-                            , Fragments.getEncodedBody fragment |> B64Lzma.b64LzmaDecode
-                            )
-            in
-                ( { model | url=url, translationState=translationState }
-                , cmd
-                )
-        else
-            case (newFragment, model.translationState) of
-                (Just fragment, Stable (_, pageInfo)) ->
-                    ( { model | url=url
-                              , titleField=Fragments.getTitle fragment
-                              , translationState=Stable (fragment, { pageInfo | title=Fragments.getTitle fragment })
-                              }
-                    , Cmd.none
-                    )
-                _ -> Debug.todo "impossible, but make this typesafe"
+    case Fragments.parseUrl url of
+        Nothing ->
+            ( { model | url=url, title="", body="" }
+            , Cmd.none
+            )
+        Just (Err _) ->
+            ( { model | url=url }
+            , Cmd.none
+            )
+        Just (Ok fragment) ->
+            ( { model | url=url, title=Fragments.getTitle fragment }
+            , B64Lzma.decode <| Fragments.getEncodedBody fragment
+            )
 
 
 -- UPDATE
@@ -105,8 +76,8 @@ startDecoding url model =
 type Msg
   = LinkClicked Browser.UrlRequest
   | UrlChanged Url.Url
-  | FragmentDecoded PageInfo
-  | PageInfoEncoded Fragment
+  | Decoded B64Lzma.EncodingRelation
+  | Encoded B64Lzma.EncodingRelation
   | UserPasted String
   | TitleAltered String
   | Ignore -- TODO: have better error handling
@@ -118,7 +89,7 @@ update msg model =
     LinkClicked urlRequest ->
       case urlRequest of
         Browser.Internal url ->
-          ( model, pushUrl model.key url )
+          ( model, Nav.pushUrl model.key (Url.toString url) )
 
         Browser.External href ->
           ( model, Nav.load href )
@@ -126,37 +97,24 @@ update msg model =
     UrlChanged url ->
         startDecoding url model
 
-    PageInfoEncoded fragment ->
+    Encoded {plaintext, encoded} ->
         ( model
-        , pushUrl model.key (Fragments.addToUrl (Just fragment) model.url)
+        , replaceUrl model.key (Fragments.addToUrl (Just (Fragments.build model.title encoded)) model.url)
         )
 
-    FragmentDecoded pageInfo ->
-        case model.translationState of
-            Decoding fragment ->
-                ( { model | titleField = pageInfo.title, translationState = Stable (fragment, pageInfo) }
-                , Cmd.none
-                )
-            _ -> Debug.log "got unexpected FragmentDecoded" ( model, Cmd.none )
+    Decoded {plaintext, encoded} ->
+        ( { model | body=plaintext }
+        , Cmd.none
+        )
 
     UserPasted body ->
-        ( { model | translationState = Encoding {title="", body=body} }
-        , B64Lzma.b64LzmaEncode body
+        ( model
+        , B64Lzma.encode body
         )
 
     TitleAltered title ->
-        ( { model | titleField = title }
-        , case Fragments.parseUrl model.url of
-            Nothing -> Cmd.none
-            Just (Err _) -> Debug.todo "invalid fragment"
-            Just (Ok currentFragment) ->
-                let
-                    newFragment =
-                        Fragments.build
-                            title
-                            (Fragments.getEncodedBody currentFragment)
-                in
-                    pushUrl model.key (Fragments.addToUrl (Just newFragment) model.url)
+        ( { model | title = title }
+        , replaceUrl model.key (Fragments.mapUrl (\f -> Fragments.build title (Fragments.getEncodedBody f)) model.url)
         )
 
     Ignore ->
@@ -170,27 +128,11 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    let
-        interpretB64LzmaResult : B64Lzma.EncodingRelation -> Msg
-        interpretB64LzmaResult relation =
-            case model.translationState of
-                Encoding pageInfo ->
-                    if relation.plaintext == pageInfo.body
-                        then PageInfoEncoded (Fragments.build pageInfo.title relation.encoded)
-                        else Ignore
-                Decoding fragment ->
-                    let
-                        {title, encodedBody} = Fragments.unwrap fragment
-                    in
-                        if relation.encoded == encodedBody
-                            then FragmentDecoded {title=title, body=relation.plaintext}
-                            else Ignore
-                _ -> Ignore
-    in
-        Sub.batch
-            [ B64Lzma.b64LzmaResult (Result.map interpretB64LzmaResult >> Result.withDefault Ignore)
-            , Clipboard.userPasted (Result.map UserPasted >> Result.withDefault Ignore)
-            ]
+    Sub.batch
+        [ B64Lzma.decoded (Result.map Decoded >> Result.withDefault Ignore)
+        , B64Lzma.encoded (Result.map Encoded >> Result.withDefault Ignore)
+        , Clipboard.userPasted (Result.map UserPasted >> Result.withDefault Ignore)
+        ]
 
 
 
@@ -199,15 +141,7 @@ subscriptions model =
 
 view : Model -> Browser.Document Msg
 view model =
-  let
-    body = case (Debug.log "page info state" model.translationState) of
-        Decoding fragment -> "<decoding...>"
-        Encoding pageInfo -> "<encoding...>"
-        Stable (_, pageInfo) -> pageInfo.body
-        NoFragment -> ""
-        InvalidFragment -> "<invalid fragment>"
-  in
-    { title = "EIB" ++ (if String.isEmpty model.titleField then "" else (": " ++ model.titleField))
+    { title = "EIB" ++ (if String.isEmpty model.title then "" else (": " ++ model.title))
     , body =
         [ div
             [ style "width" "100%"
@@ -217,7 +151,7 @@ view model =
             ]
             [ div [style "width" "30%"] [text "Don't trust the red box any more than you trust the link you clicked on."]
             , div [style "width" "40%"] [textarea [ placeholder "Title"
-                                                  , value model.titleField
+                                                  , value model.title
                                                   , style "text-align" "center"
                                                   , style "font-weight" "700"
                                                   , style "font-size" "1em"
@@ -231,7 +165,7 @@ view model =
             , div [style "width" "30%", style "color" "gray", style "text-align" "right"] [text "Paste anywhere to set the page content."]
             ]
         , iframe
-            [ srcdoc body
+            [ srcdoc model.body
             , style "border" "1px solid red"
             , style "margin" "4em 1% 1% 1%"
             , style "position" "absolute"

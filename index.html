@@ -36,18 +36,18 @@
   var app = Elm.Main.init({
     node: document.getElementById('elm')
   });
-  app.ports.b64LzmaDecodePort.subscribe(function(encoded) {
+  app.ports.decodePort.subscribe(function(encoded) {
     debugLog("decoding", {encoded});
     zipToString(encoded, function(plaintext) {
-        app.ports.b64LzmaResultPort.send({plaintext, encoded});
+        app.ports.decodedPort.send({plaintext, encoded});
         debugLog("decoded", {plaintext});
     });
   });
-  app.ports.b64LzmaEncodePort.subscribe(function(plaintext) {
+  app.ports.encodePort.subscribe(function(plaintext) {
     LZMA.compress(plaintext, 9, function(lzmaEncoded, error) {
       if (error) console.error(error);
       var encoded = btoa(String.fromCharCode.apply(null, new Uint8Array(lzmaEncoded)));
-      app.ports.b64LzmaResultPort.send({plaintext, encoded});
+      app.ports.encodedPort.send({plaintext, encoded});
       debugLog("compressed", {encoded});
     });
   })
