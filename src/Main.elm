@@ -51,30 +51,53 @@ type TranslationState
 type alias Model =
   { key : Nav.Key
   , url : Url.Url
+  , titleField : String
   , translationState : TranslationState
   }
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-    startDecoding url {key=key, url=url, translationState=NoFragment}
+    startDecoding url {key=key, titleField="", url=url, translationState=NoFragment}
 
 startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
 startDecoding url model =
     let
-        (translationState, cmd) =
-            case Fragments.parseUrl url of
-                Nothing ->
-                    ( NoFragment, Cmd.none )
-                Just (Err _) ->
-                    ( InvalidFragment, Cmd.none )
-                Just (Ok fragment) ->
-                    ( Decoding fragment
-                    , Fragments.getEncodedBody fragment |> B64Lzma.b64LzmaDecode
-                    )
+        newFragment = case Fragments.parseUrl url of
+            Just (Ok fragment) -> Just fragment
+            _ -> Nothing
+        needsDecode =
+            case (newFragment, model.translationState) of
+                (Just fragment, Stable (oldFragment, _)) ->
+                    Fragments.getEncodedBody oldFragment /= Fragments.getEncodedBody fragment
+                _ -> True
     in
-        ( { model | url=url, translationState=translationState }
-        , cmd
-        )
+        if needsDecode then
+            let
+                (translationState, cmd) =
+                    case Fragments.parseUrl url of
+                        Nothing ->
+                            ( NoFragment, Cmd.none )
+                        Just (Err _) ->
+                            ( InvalidFragment, Cmd.none )
+                        Just (Ok fragment) ->
+                            ( Decoding fragment
+                            , Fragments.getEncodedBody fragment |> B64Lzma.b64LzmaDecode
+                            )
+            in
+                ( { model | url=url, translationState=translationState }
+                , cmd
+                )
+        else
+            case (newFragment, model.translationState) of
+                (Just fragment, Stable (_, pageInfo)) ->
+                    ( { model | url=url
+                              , titleField=Fragments.getTitle fragment
+                              , translationState=Stable (fragment, { pageInfo | title=Fragments.getTitle fragment })
+                              }
+                    , Cmd.none
+                    )
+                _ -> Debug.todo "impossible, but make this typesafe"
+
 
 -- UPDATE
 
@@ -85,6 +108,7 @@ type Msg
   | FragmentDecoded PageInfo
   | PageInfoEncoded Fragment
   | UserPasted String
+  | TitleAltered String
   | Ignore -- TODO: have better error handling
 
 
@@ -110,7 +134,7 @@ update msg model =
     FragmentDecoded pageInfo ->
         case model.translationState of
             Decoding fragment ->
-                ( { model | translationState = Stable (fragment, pageInfo) }
+                ( { model | titleField = pageInfo.title, translationState = Stable (fragment, pageInfo) }
                 , Cmd.none
                 )
             _ -> Debug.log "got unexpected FragmentDecoded" ( model, Cmd.none )
@@ -118,6 +142,21 @@ update msg model =
     UserPasted body ->
         ( { model | translationState = Encoding {title="", body=body} }
         , B64Lzma.b64LzmaEncode body
+        )
+
+    TitleAltered title ->
+        ( { model | titleField = title }
+        , case Fragments.parseUrl model.url of
+            Nothing -> Cmd.none
+            Just (Err _) -> Debug.todo "invalid fragment"
+            Just (Ok currentFragment) ->
+                let
+                    newFragment =
+                        Fragments.build
+                            title
+                            (Fragments.getEncodedBody currentFragment)
+                in
+                    pushUrl model.key (Fragments.addToUrl (Just newFragment) model.url)
         )
 
     Ignore ->
@@ -161,14 +200,14 @@ subscriptions model =
 view : Model -> Browser.Document Msg
 view model =
   let
-    {title, body} = case (Debug.log "page info state" model.translationState) of
-        Decoding fragment -> {title="", body="<decoding...>"}
-        Encoding pageInfo -> {title="", body="<encoding...>"}
-        Stable (_, pageInfo) -> pageInfo
-        NoFragment -> {title="", body=""}
-        InvalidFragment -> {title="", body="<invalid fragment>"}
+    body = case (Debug.log "page info state" model.translationState) of
+        Decoding fragment -> "<decoding...>"
+        Encoding pageInfo -> "<encoding...>"
+        Stable (_, pageInfo) -> pageInfo.body
+        NoFragment -> ""
+        InvalidFragment -> "<invalid fragment>"
   in
-    { title = "EIB" ++ (if String.isEmpty title then "" else (": " ++ title))
+    { title = "EIB" ++ (if String.isEmpty model.titleField then "" else (": " ++ model.titleField))
     , body =
         [ div
             [ style "width" "100%"
@@ -176,19 +215,20 @@ view model =
             , style "flex-direction" "row"
             , style "justify-content" "space-between"
             ]
-            [ div [style "max-width" "30%"] [text "Don't trust the red box any more than you trust the link you clicked on."]
+            [ div [style "width" "30%"] [text "Don't trust the red box any more than you trust the link you clicked on."]
             , div [style "width" "40%"] [textarea [ placeholder "Title"
-                                                  , value title
+                                                  , value model.titleField
                                                   , style "text-align" "center"
                                                   , style "font-weight" "700"
                                                   , style "font-size" "1em"
                                                   , style "width" "100%"
                                                   , style "resize" "none"
                                                   , style "border" "0"
+                                                  , Html.Events.onInput TitleAltered
                                                   , Html.Events.stopPropagationOn "paste" (D.succeed (Ignore, True))
                                                   ]
                                                   [] ]
-            , div [style "max-width" "30%", style "color" "gray"] [text "Paste anywhere to set the page content."]
+            , div [style "width" "30%", style "color" "gray", style "text-align" "right"] [text "Paste anywhere to set the page content."]
             ]
         , iframe
             [ srcdoc body

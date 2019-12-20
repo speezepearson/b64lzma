@@ -21,7 +21,7 @@ type ParseError = ParseError
 build : String -> B64Lzma -> Fragment
 build title encodedBody =
     Fragment
-        { title = title |> String.trim |> String.replace " " "_" |> Url.percentEncode
+        { title = title |> String.replace " " "_" |> Url.percentEncode
         , encodedBody = encodedBody
         }
 
