@@ -19,6 +19,8 @@ type alias RawFragment = { title : String, encodedBody : B64Lzma }
 type Fragment = Fragment RawFragment
 type ParseError = ParseError
 
+titleBodySeparator = "/?"
+
 build : String -> B64Lzma -> Fragment
 build title encodedBody =
     Fragment
@@ -38,15 +40,15 @@ getEncodedBody (Fragment {encodedBody}) = encodedBody
 toString : Fragment -> String
 toString (Fragment {title, encodedBody}) =
     case encodedBody of
-        B64Lzma s -> title ++ "/" ++ s
+        B64Lzma s -> title ++ titleBodySeparator ++ s
 
 parse : String -> Result ParseError Fragment
 parse s =
-    case List.head (String.indexes "/" s) of
+    case List.head (String.indexes titleBodySeparator s) of
         Nothing -> Err ParseError
         Just i -> Ok <| Fragment <|
             { title = String.left i s |> Url.percentDecode |> Maybe.withDefault "" |> String.replace "_" " "
-            , encodedBody = B64Lzma <| String.dropLeft (i+1) s
+            , encodedBody = B64Lzma <| String.dropLeft (i + String.length titleBodySeparator) s
             }
 
 parseUrl : Url.Url -> Maybe (Result ParseError Fragment)
