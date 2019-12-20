@@ -3,7 +3,6 @@ import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Url
-import Url.Parser exposing (fragment)
 import Json.Decode as D
 import Json.Encode as E
 
@@ -82,7 +81,8 @@ startDecoding url model =
 type Msg
   = LinkClicked Browser.UrlRequest
   | UrlChanged Url.Url
-  | B64LzmaRelationDetermined B64Lzma.EncodingRelation
+  | FragmentDecoded PageInfo
+  | PageInfoEncoded Fragment
   | UserPasted String
   | Ignore -- TODO: have better error handling
 
@@ -101,30 +101,18 @@ update msg model =
     UrlChanged url ->
         startDecoding url model
 
-    B64LzmaRelationDetermined relation ->
+    PageInfoEncoded fragment ->
+        ( model
+        , pushUrl model.key (Fragments.addToUrl (Just fragment) model.url)
+        )
+
+    FragmentDecoded pageInfo ->
         case model.translationState of
-            Encoding pageInfo ->
-                if (relation.plaintext == pageInfo.body)
-                    then ( model
-                         , relation.encoded
-                           |> Fragments.build ""
-                           |> (\fragment -> Fragments.addToUrl (Just fragment) model.url)
-                           |> pushUrl model.key
-                         )
-                    else let
-                            _ = Debug.log "got a relation we didn't expect" (msg, model)
-                         in
-                            (model, Cmd.none)
             Decoding fragment ->
-                if (relation.encoded == Fragments.getEncodedBody fragment)
-                    then ( { model | translationState = Stable (fragment, { title=Fragments.getTitle fragment, body=relation.plaintext })}
-                         , Cmd.none
-                         )
-                    else let
-                            _ = Debug.log "got a relation we didn't expect" (msg, model)
-                         in
-                            (model, Cmd.none)
-            _ -> let _ = Debug.log "got an EncodingRelation when not expecting" (msg, model) in (model, Cmd.none)
+                ( { model | translationState = Stable (fragment, pageInfo) }
+                , Cmd.none
+                )
+            _ -> Debug.log "got unexpected FragmentDecoded" ( model, Cmd.none )
 
     UserPasted body ->
         ( { model | translationState = Encoding {title="", body=body} }
@@ -141,11 +129,28 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-  Sub.batch
-    [ B64Lzma.b64LzmaResult (Result.map B64LzmaRelationDetermined >> Result.withDefault Ignore)
-    , Clipboard.userPasted (Result.map UserPasted >> Result.withDefault Ignore)
-    ]
+subscriptions model =
+    let
+        interpretB64LzmaResult : B64Lzma.EncodingRelation -> Msg
+        interpretB64LzmaResult relation =
+            case model.translationState of
+                Encoding pageInfo ->
+                    if relation.plaintext == pageInfo.body
+                        then PageInfoEncoded (Fragments.build pageInfo.title relation.encoded)
+                        else Ignore
+                Decoding fragment ->
+                    let
+                        {title, encodedBody} = Fragments.unwrap fragment
+                    in
+                        if relation.encoded == encodedBody
+                            then FragmentDecoded {title=title, body=relation.plaintext}
+                            else Ignore
+                _ -> Ignore
+    in
+        Sub.batch
+            [ B64Lzma.b64LzmaResult (Result.map interpretB64LzmaResult >> Result.withDefault Ignore)
+            , Clipboard.userPasted (Result.map UserPasted >> Result.withDefault Ignore)
+            ]
 
 
 

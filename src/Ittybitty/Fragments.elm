@@ -1,6 +1,7 @@
 module Ittybitty.Fragments exposing
     ( Fragment
     , build
+    , unwrap
     , getTitle
     , getEncodedBody
     , parse
@@ -23,6 +24,9 @@ build title encodedBody =
         { title = title |> String.trim |> String.replace " " "_" |> Url.percentEncode
         , encodedBody = encodedBody
         }
+
+unwrap : Fragment -> RawFragment
+unwrap (Fragment raw) = raw
 
 getTitle : Fragment -> String
 getTitle (Fragment {title}) = title
