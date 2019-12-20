@@ -24,7 +24,6 @@ setFragment fragment url =
 
 -- MAIN
 
-
 main : Program () Model Msg
 main =
   Browser.application
@@ -40,18 +39,18 @@ main =
 
 -- MODEL
 
-
 type alias Model =
   { key : Nav.Key
   , url : Url.Url
   , title : String
   , body : String
+  , trusted : Bool
   -- , errors: List String
   }
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-    startDecoding url {key=key, url=url, title="", body=""}
+    startDecoding url {key=key, url=url, title="", body="", trusted=False}
 
 startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
 startDecoding url model =
@@ -78,6 +77,7 @@ type Msg
   | Encoded B64Lzma.EncodingRelation
   | UserPasted String
   | TitleAltered String
+  | SetTrusted Bool
   | Ignore
 
 
@@ -115,6 +115,11 @@ update msg model =
         , replaceUrl model.key (Fragments.mapUrl (\f -> Fragments.build title (Fragments.getEncodedBody f)) model.url)
         )
 
+    SetTrusted trusted ->
+        ( { model | trusted = trusted }
+        , Cmd.none
+        )
+
     Ignore ->
       ( model, Cmd.none )
 
@@ -136,6 +141,19 @@ subscriptions model =
 
 -- VIEW
 
+checkbox : (Bool -> msg) -> List (Attribute msg) -> List (Html msg) -> Html msg
+checkbox onToggle attrs contents =
+    let
+        eventDecoder : D.Decoder msg
+        eventDecoder =
+            D.field "target"
+            <| D.field "value"
+            <| D.map (\s -> onToggle ((Debug.log "value" s) == "on"))
+            <| D.string
+    in
+        input
+            (type_ "checkbox" :: Html.Events.on "click" eventDecoder :: attrs)
+            contents
 
 view : Model -> Browser.Document Msg
 view model =
@@ -147,7 +165,12 @@ view model =
             , style "flex-direction" "row"
             , style "justify-content" "space-between"
             ]
-            [ div [style "width" "30%"] [text "Don't trust the red box any more than you trust the link you clicked on."]
+            [ div [style "width" "30%"]
+                [ text "Don't trust the red box any more than you trust the link you clicked on."
+                , br [] []
+                , checkbox SetTrusted [id "trusted-toggle"] []
+                , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
+                ]
             , div [style "width" "40%"] [textarea [ placeholder "Title"
                                                   , value model.title
                                                   , style "text-align" "center"
@@ -169,7 +192,8 @@ view model =
                 ]
             ]
         , iframe
-            [ srcdoc model.body
+            [ srcdoc (model.body ++ (if model.trusted then "" else " ")) -- XXX: hack to reload iframe to evade cached permissions
+            , sandbox (if model.trusted then "allow-scripts allow-modals" else "")
             , style "border" "1px solid red"
             , style "margin" "4em 1% 1% 1%"
             , style "position" "absolute"

@@ -19,7 +19,7 @@ type alias RawFragment = { title : String, encodedBody : B64Lzma }
 type Fragment = Fragment RawFragment
 type ParseError = ParseError
 
-titleBodySeparator = "/?"
+titleBodySeparator = "/?" -- TODO: this should be a regex, `Regex "/\\??"`, to match Ittybitty
 
 build : String -> B64Lzma -> Fragment
 build title encodedBody =
