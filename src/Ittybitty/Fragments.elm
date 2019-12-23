@@ -11,6 +11,7 @@ module Ittybitty.Fragments exposing
     , mapUrl
     )
 
+import Regex
 import Url
 import B64Lzma exposing (B64Lzma(..))
 
@@ -19,12 +20,10 @@ type alias RawFragment = { title : String, encodedBody : B64Lzma }
 type Fragment = Fragment RawFragment
 type ParseError = ParseError
 
-titleBodySeparator = "/?" -- TODO: this should be a regex, `Regex "/\\??"`, to match Ittybitty
-
 build : String -> B64Lzma -> Fragment
 build title encodedBody =
     Fragment
-        { title = title |> String.replace " " "_" |> Url.percentEncode
+        { title = title
         , encodedBody = encodedBody
         }
 
@@ -40,16 +39,36 @@ getEncodedBody (Fragment {encodedBody}) = encodedBody
 toString : Fragment -> String
 toString (Fragment {title, encodedBody}) =
     case encodedBody of
-        B64Lzma s -> title ++ titleBodySeparator ++ s
+        B64Lzma s ->
+            (title |> String.replace " " "_" |> Url.percentEncode)
+            ++ "/?"
+            ++ s
+
+fragmentStringRegex : Regex.Regex
+fragmentStringRegex =
+    case Regex.fromString "([^/]*)/\\??(.+)" of
+        Just re -> re
+        Nothing -> Debug.todo "impossible"
 
 parse : String -> Result ParseError Fragment
 parse s =
-    case List.head (String.indexes titleBodySeparator s) of
+    case List.head (Regex.find fragmentStringRegex s) of
         Nothing -> Err ParseError
-        Just i -> Ok <| Fragment <|
-            { title = String.left i s |> Url.percentDecode |> Maybe.withDefault "" |> String.replace "_" " "
-            , encodedBody = B64Lzma <| String.dropLeft (i + String.length titleBodySeparator) s
-            }
+        Just {submatches} ->
+            let
+                decodeTitle : String -> String
+                decodeTitle t =
+                    t
+                    |> Url.percentDecode
+                    |> Maybe.withDefault ""
+                    |> String.replace "_" " "
+
+                (title, encodedBody) = case submatches of
+                    [Nothing, Just b] -> ("", B64Lzma b)
+                    [Just t, Just b] -> (decodeTitle t, B64Lzma b)
+                    _ -> Debug.todo "impossible: there must be two submatches"
+            in
+                Ok (build title encodedBody)
 
 parseUrl : Url.Url -> Maybe (Result ParseError Fragment)
 parseUrl url =
