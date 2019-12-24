@@ -216,13 +216,7 @@ viewHeader model =
                                               ]
                                               [] ]
         , div [style "width" "30%", style "color" "gray", style "text-align" "right"]
-            [ input [ value ""
-                    , style "width" "100%"
-                    , placeholder "Paste here to set the page content."
-                    , id "body-setter"
-                    ]
-                    []
-            ]
+            [ text "Paste anywhere (outside red box) to set content." ]
         ]
 
 

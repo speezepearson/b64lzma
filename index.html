@@ -53,9 +53,6 @@
   })
 
   window.addEventListener('paste', function(event) {
-    if (event.target.id !== "body-setter") {
-      return;
-    }
     var data = (event.clipboardData || window.clipboardData)
     app.ports.userPastedPort.send({
         html: data.getData('text/html') || null,
