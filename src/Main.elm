@@ -77,7 +77,7 @@ type Msg
   | Encoded B64Lzma.EncodingRelation
   | UserPasted String
   | TitleAltered String
-  | SetTrusted Bool
+  | TrustToggled Bool
   | Ignore
 
 
@@ -115,7 +115,7 @@ update msg model =
         , replaceUrl model.key (Fragments.mapUrl (\f -> Fragments.build title (Fragments.getEncodedBody f)) model.url)
         )
 
-    SetTrusted trusted ->
+    TrustToggled trusted ->
         ( { model | trusted = trusted }
         , Cmd.none
         )
@@ -157,7 +157,7 @@ view model =
                 , input [ id "trusted-toggle"
                         , type_ "checkbox"
                         , value (if model.trusted then "on" else "off")
-                        , Html.Events.onClick (SetTrusted <| not model.trusted)
+                        , Html.Events.onClick (TrustToggled <| not model.trusted)
                         ]
                         []
                 , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
