@@ -2,7 +2,7 @@ import Browser
 import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events
+import Html.Events exposing (onClick, onInput)
 import Url
 import Json.Decode as D
 import Json.Encode as E
@@ -175,7 +175,7 @@ viewHeader model =
             , input [ id "trusted-toggle"
                     , type_ "checkbox"
                     , value (if model.trusted then "on" else "off")
-                    , Html.Events.onClick (TrustToggled <| not model.trusted)
+                    , onClick (TrustToggled <| not model.trusted)
                     ]
                     []
             , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
@@ -188,7 +188,7 @@ viewHeader model =
                                               , style "width" "100%"
                                               , style "resize" "none"
                                               , style "border" "0"
-                                              , Html.Events.onInput TitleAltered
+                                              , onInput TitleAltered
                                               ]
                                               [] ]
         , div [style "width" "30%", style "color" "gray", style "text-align" "right"]
