@@ -213,12 +213,25 @@ subscriptions model =
 
 -- VIEW
 
+fullpage : List (Html msg) -> Html msg
+fullpage contents =
+    div
+        [ style "position" "absolute"
+        , style "left" "0"
+        , style "top" "0"
+        , style "width" "100%"
+        , style "height" "100%"
+        ]
+        contents
+
 view : Model -> Browser.Document Msg
 view model =
     { title = if String.isEmpty model.title then "Elm-Ittybitty" else model.title
     , body =
-        [ viewHeader model
-        , viewBody model
+        [ fullpage
+            [ viewHeader model
+            , viewBody model
+            ]
         ]
     }
 
@@ -278,10 +291,7 @@ viewBody model =
         [ srcdoc (model.body ++ (if model.trusted then "" else " ")) -- XXX: hack to reload iframe to evade cached permissions
         , sandbox (if model.trusted then "allow-scripts allow-modals" else "")
         , style "border" "1px solid red"
-        , style "margin" "4em 1% 1% 1%"
-        , style "position" "absolute"
-        , style "top" "0"
-        , style "left" "0"
+        , style "margin" "1%"
         , style "width" "98%"
         , style "height" "95%"
         ]
