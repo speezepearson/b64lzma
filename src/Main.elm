@@ -182,17 +182,21 @@ view model =
                         []
                 ]
             ]
-        , iframe
-            [ srcdoc (model.body ++ (if model.trusted then "" else " ")) -- XXX: hack to reload iframe to evade cached permissions
-            , sandbox (if model.trusted then "allow-scripts allow-modals" else "")
-            , style "border" "1px solid red"
-            , style "margin" "4em 1% 1% 1%"
-            , style "position" "absolute"
-            , style "top" "0"
-            , style "left" "0"
-            , style "width" "98%"
-            , style "height" "95%"
-            ]
-            []
+        , viewBody model
         ]
     }
+
+viewBody : Model -> Html Msg
+viewBody model =
+    iframe
+        [ srcdoc (model.body ++ (if model.trusted then "" else " ")) -- XXX: hack to reload iframe to evade cached permissions
+        , sandbox (if model.trusted then "allow-scripts allow-modals" else "")
+        , style "border" "1px solid red"
+        , style "margin" "4em 1% 1% 1%"
+        , style "position" "absolute"
+        , style "top" "0"
+        , style "left" "0"
+        , style "width" "98%"
+        , style "height" "95%"
+        ]
+        []
