@@ -39,18 +39,31 @@ main =
 
 -- MODEL
 
+type PasteMode
+    = PasteText
+    | PasteHtml
+    | PasteAuto
+
 type alias Model =
   { key : Nav.Key
   , url : Url.Url
   , title : String
   , body : String
   , trusted : Bool
+  , pasteMode : PasteMode
   -- , errors: List String
   }
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-    startDecoding url {key=key, url=url, title="", body="", trusted=False}
+    startDecoding url
+        { key = key
+        , url = url
+        , title = ""
+        , body = ""
+        , trusted = False
+        , pasteMode = PasteAuto
+        }
 
 startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
 startDecoding url model =
@@ -85,6 +98,10 @@ htmlEscape s =
     |> String.replace "\"" "&quot;"
     |> String.replace "'" "&#39;"
 
+wrapInPre : String -> String
+wrapInPre s =
+    "<pre>" ++ htmlEscape s ++ "</pre>"
+
 
 -- UPDATE
 
@@ -97,6 +114,7 @@ type Msg
   | UserPasted Clipboard.PastedData
   | TitleAltered String
   | TrustToggled Bool
+  | PasteModeToggled PasteMode
   | Ignore
 
 
@@ -130,16 +148,30 @@ update msg model =
 
     UserPasted pastedData ->
         let
+            plainTextModeBodyOrWarn : () -> String
+            plainTextModeBodyOrWarn () =
+                case pastedData.plainText of
+                    Just raw -> wrapInPre raw
+                    Nothing -> -- TODO: improve errors
+                        Debug.log
+                            ("warning: no text/plain data in " ++ Debug.toString pastedData)
+                            ""
             body : String
-            body =
-                case pastedData.html of
-                    Just h -> h
-                    Nothing -> case pastedData.plainText of
-                        Just raw -> "<pre>" ++ htmlEscape raw ++ "</pre>"
-                        Nothing ->
+            body = case model.pasteMode of
+                PasteText ->
+                    plainTextModeBodyOrWarn ()
+                PasteHtml ->
+                    case pastedData.html of
+                        Just h -> h
+                        Nothing -> -- TODO: improve errors
                             Debug.log
-                                ("warning: no content extracted from pasted data " ++ Debug.toString pastedData)
-                                ""
+                                ("warning: no text/html data in " ++ Debug.toString pastedData ++ "; falling back to text/plain")
+                                (plainTextModeBodyOrWarn ())
+
+                PasteAuto ->
+                    case pastedData.html of
+                        Just h -> h
+                        Nothing -> plainTextModeBodyOrWarn ()
         in
             ( { model | body = body }
             , B64Lzma.encode body
@@ -152,6 +184,11 @@ update msg model =
 
     TrustToggled trusted ->
         ( { model | trusted = trusted }
+        , Cmd.none
+        )
+
+    PasteModeToggled mode ->
+        ( { model | pasteMode = mode }
         , Cmd.none
         )
 
@@ -216,8 +253,23 @@ viewHeader model =
                                               ]
                                               [] ]
         , div [style "width" "30%", style "color" "gray", style "text-align" "right"]
-            [ text "Paste anywhere (outside red box) to set content." ]
+            (viewPasteInfo model)
         ]
+
+viewPasteInfo : Model -> List (Html Msg)
+viewPasteInfo model =
+    [ text "Paste anywhere (outside red box) to set content."
+    , br [] []
+    , text "Type: "
+    , input [ type_ "radio", checked (model.pasteMode == PasteText), onClick (PasteModeToggled PasteText) ] []
+    , text "code"
+    , text " "
+    , input [ type_ "radio", checked (model.pasteMode == PasteHtml), onClick (PasteModeToggled PasteHtml) ] []
+    , text "html"
+    , text " "
+    , input [ type_ "radio", checked (model.pasteMode == PasteAuto), onClick (PasteModeToggled PasteAuto) ] []
+    , text "auto"
+    ]
 
 
 viewBody : Model -> Html Msg
