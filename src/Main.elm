@@ -141,20 +141,6 @@ subscriptions model =
 
 -- VIEW
 
-checkbox : (Bool -> msg) -> List (Attribute msg) -> List (Html msg) -> Html msg
-checkbox onToggle attrs contents =
-    let
-        eventDecoder : D.Decoder msg
-        eventDecoder =
-            D.field "target"
-            <| D.field "value"
-            <| D.map (\s -> onToggle ((Debug.log "value" s) == "on"))
-            <| D.string
-    in
-        input
-            (type_ "checkbox" :: Html.Events.on "click" eventDecoder :: attrs)
-            contents
-
 view : Model -> Browser.Document Msg
 view model =
     { title = if String.isEmpty model.title then "Elm-Ittybitty" else model.title
@@ -168,7 +154,12 @@ view model =
             [ div [style "width" "30%"]
                 [ text "Don't trust the red box any more than you trust the link you clicked on."
                 , br [] []
-                , checkbox SetTrusted [id "trusted-toggle"] []
+                , input [ id "trusted-toggle"
+                        , type_ "checkbox"
+                        , value (if model.trusted then "on" else "off")
+                        , Html.Events.onClick (SetTrusted <| not model.trusted)
+                        ]
+                        []
                 , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
                 ]
             , div [style "width" "40%"] [textarea [ placeholder "Title"
