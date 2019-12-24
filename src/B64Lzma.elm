@@ -32,14 +32,28 @@ port encodedPort : (E.Value -> msg) -> Sub msg
 
 encode : String -> Cmd msg
 encode plaintext =
-    encodePort <| E.string plaintext
+    plaintext
+    |> Debug.log "b64lzma-encoding"
+    |> E.string
+    |> encodePort
 decode : B64Lzma -> Cmd msg
 decode (B64Lzma s) =
-    decodePort <| E.string s
+    s
+    |> Debug.log "b64lzma-decoding"
+    |> E.string
+    |> decodePort
 
 encoded : (Result D.Error EncodingRelation -> msg) -> Sub msg
 encoded translate =
-    encodedPort (D.decodeValue encodingRelationDecoder >> Debug.log "got relation" >> translate)
+    encodedPort
+        ( D.decodeValue encodingRelationDecoder
+        >> Debug.log "got relation"
+        >> translate
+        )
 decoded : (Result D.Error EncodingRelation -> msg) -> Sub msg
 decoded translate =
-    decodedPort (D.decodeValue encodingRelationDecoder >> Debug.log "got relation" >> translate)
+    decodedPort
+        ( D.decodeValue encodingRelationDecoder
+        >> Debug.log "got relation"
+        >> translate
+        )
