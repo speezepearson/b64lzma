@@ -256,6 +256,7 @@ viewHeader model =
             ]
         , div [style "width" "40%"] [textarea [ placeholder "Title"
                                               , value model.title
+                                              , class "elm-ignore-paste"
                                               , style "text-align" "center"
                                               , style "font-weight" "700"
                                               , style "font-size" "1em"

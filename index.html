@@ -53,11 +53,15 @@
   })
 
   window.addEventListener('paste', function(event) {
+    if (event.target.classList.contains("elm-ignore-paste")) {
+        return;
+    }
     var data = (event.clipboardData || window.clipboardData)
     app.ports.userPastedPort.send({
         html: data.getData('text/html') || null,
         plainText: data.getData("text/plain") || null,
     });
+    event.preventDefault();
   });
 
   </script>
