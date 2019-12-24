@@ -280,19 +280,43 @@ viewHeader model =
             (viewPasteInfo model)
         ]
 
+viewRadio : {id : String, label : List (Html msg), checked : Bool, msg : msg} -> Html msg
+viewRadio args =
+    span []
+        [ input [ type_ "radio"
+                , id args.id
+                , checked args.checked
+                , onClick args.msg
+                ]
+                []
+        , label [for args.id] args.label
+        ]
+
 viewPasteInfo : Model -> List (Html Msg)
 viewPasteInfo model =
     [ text "Paste anywhere (outside red box) to set content."
     , br [] []
     , text "Type: "
-    , input [ type_ "radio", checked (model.pasteMode == PasteText), onClick (PasteModeToggled PasteText) ] []
-    , text "code"
+    , viewRadio
+        { id="set-paste-mode-Text"
+        , label=[text "text"]
+        , checked=(model.pasteMode == PasteText)
+        , msg=(PasteModeToggled PasteText)
+        }
     , text " "
-    , input [ type_ "radio", checked (model.pasteMode == PasteHtml), onClick (PasteModeToggled PasteHtml) ] []
-    , text "html"
+    , viewRadio
+        { id="set-paste-mode-Html"
+        , label=[text "html"]
+        , checked=(model.pasteMode == PasteHtml)
+        , msg=(PasteModeToggled PasteHtml)
+        }
     , text " "
-    , input [ type_ "radio", checked (model.pasteMode == PasteAuto), onClick (PasteModeToggled PasteAuto) ] []
-    , text "auto"
+    , viewRadio
+        { id="set-paste-mode-Auto"
+        , label=[text "auto"]
+        , checked=(model.pasteMode == PasteAuto)
+        , msg=(PasteModeToggled PasteAuto)
+        }
     ]
 
 
