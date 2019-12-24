@@ -57,8 +57,10 @@
       return;
     }
     var data = (event.clipboardData || window.clipboardData)
-    var text = data.getData('text/html') || data.getData('text');
-    app.ports.userPastedPort.send(text);
+    app.ports.userPastedPort.send({
+        html: data.getData('text/html') || null,
+        plainText: data.getData("text/plain") || null,
+    });
   });
 
   </script>

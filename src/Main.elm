@@ -82,7 +82,7 @@ type Msg
   | UrlChanged Url.Url
   | Decoded B64Lzma.EncodingRelation
   | Encoded B64Lzma.EncodingRelation
-  | UserPasted String
+  | UserPasted Clipboard.PastedData
   | TitleAltered String
   | TrustToggled Bool
   | Ignore
@@ -116,10 +116,14 @@ update msg model =
         , Cmd.none
         )
 
-    UserPasted body ->
-        ( model
-        , B64Lzma.encode body
-        )
+    UserPasted pastedData ->
+        let
+            body : String
+            body = pastedData.html |> Maybe.withDefault (pastedData.plainText |> Maybe.withDefault "")
+        in
+            ( { model | body = body }
+            , B64Lzma.encode body
+            )
 
     TitleAltered title ->
         ( { model | title = title }
