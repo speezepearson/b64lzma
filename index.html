@@ -33,8 +33,15 @@
     });
   }
 
+  var ignorePasteClass = "elm-ignore-paste";
+
   var app = Elm.Main.init({
-    node: document.getElementById('elm')
+    node: document.getElementById('elm'),
+    flags: {
+      interopConstants: {
+        ignorePasteClass: ignorePasteClass,
+      },
+    },
   });
   app.ports.decodePort.subscribe(function(encoded) {
     debugLog("decoding", {encoded});
@@ -53,7 +60,7 @@
   })
 
   window.addEventListener('paste', function(event) {
-    if (event.target.classList.contains("elm-ignore-paste")) {
+    if (event.target.classList.contains(ignorePasteClass)) {
         return;
     }
     var data = (event.clipboardData || window.clipboardData)

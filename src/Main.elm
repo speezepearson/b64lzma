@@ -24,7 +24,15 @@ setFragment fragment url =
 
 -- MAIN
 
-main : Program () Model Msg
+type alias InteropConstants =
+    { ignorePasteClass : String
+    }
+
+type alias Flags =
+    { interopConstants : InteropConstants
+    }
+
+main : Program Flags Model Msg
 main =
   Browser.application
     { init = init
@@ -51,10 +59,11 @@ type alias Model =
   , body : String
   , trusted : Bool
   , pasteMode : PasteMode
+  , interopConstants : InteropConstants
   -- , errors: List String
   }
 
-init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     startDecoding url
         { key = key
@@ -63,6 +72,7 @@ init flags url key =
         , body = ""
         , trusted = False
         , pasteMode = PasteAuto
+        , interopConstants = flags.interopConstants
         }
 
 startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
@@ -256,7 +266,7 @@ viewHeader model =
             ]
         , div [style "width" "40%"] [textarea [ placeholder "Title"
                                               , value model.title
-                                              , class "elm-ignore-paste"
+                                              , class model.interopConstants.ignorePasteClass
                                               , style "text-align" "center"
                                               , style "font-weight" "700"
                                               , style "font-size" "1em"
