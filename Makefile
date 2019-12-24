@@ -1,4 +1,4 @@
-all: dist/index.html dist/main.js dist/elm.js dist/lzma/lzma-d-min.js dist/lzma/lzma_worker-min.js
+all: dist/index.html dist/b64lzma.js dist/main.js dist/elm.js dist/lzma/lzma-d-min.js dist/lzma/lzma_worker-min.js
 
 serve:
 	python3 -m http.server --bind 127.0.0.1 34348
@@ -12,6 +12,10 @@ dist/index.html: src/index.html
 	cp "$<" "$@"
 
 dist/main.js: src/main.js
+	mkdir -p dist
+	cp "$<" "$@"
+
+dist/b64lzma.js: src/b64lzma.js
 	mkdir -p dist
 	cp "$<" "$@"
 
