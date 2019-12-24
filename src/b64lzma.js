@@ -10,19 +10,23 @@ window.B64Lzma = (function() {
     }
 
     function b64lzmaDecode(encoded, callback) {
-        var array = base64ToByteArray(encoded);
+        var array
+        try {
+            var array = base64ToByteArray(encoded);
+        } catch (e) {
+            callback(null, "invalid base64");
+            return;
+        }
         LZMA.decompress(array, function(result, error) {
           if (!(typeof result === 'string')) result = new Uint8Array(result)
-          if (error) console.error(error);
-          callback(result);
+          callback(result, error);
         });
     }
 
     function b64lzmaEncode(plaintext, callback) {
         LZMA.compress(plaintext, 9, function(lzmaEncoded, error) {
-          if (error) console.error(error);
           var encoded = btoa(String.fromCharCode.apply(null, new Uint8Array(lzmaEncoded)));
-          callback(encoded);
+          callback(encoded, error);
         });
     }
 

@@ -1,5 +1,6 @@
 port module B64Lzma exposing
     ( B64Lzma(..)
+    , Error(..)
     , EncodingRelation
     , decode
     , encode
@@ -25,6 +26,24 @@ encodingRelationDecoder =
         (D.field "encoded" (D.map B64Lzma D.string))
 
 
+type Error
+    = ProtocolError D.Error
+    | InvalidBase64
+    | UnrecognizedError String
+
+errorDecoder : D.Decoder Error
+errorDecoder =
+    D.map
+        (\s -> if s == "invalid base64" then InvalidBase64 else UnrecognizedError s)
+        D.string
+
+responseDecoder : D.Decoder (Result Error EncodingRelation)
+responseDecoder =
+    D.oneOf
+        [ D.field "error" (D.map Err errorDecoder)
+        , D.map Ok encodingRelationDecoder
+        ]
+
 port encodePort : E.Value -> Cmd msg
 port decodePort : E.Value -> Cmd msg
 port decodedPort : (E.Value -> msg) -> Sub msg
@@ -43,17 +62,21 @@ decode (B64Lzma s) =
     |> E.string
     |> decodePort
 
-encoded : (Result D.Error EncodingRelation -> msg) -> Sub msg
+encoded : (Result Error EncodingRelation -> msg) -> Sub msg
 encoded translate =
     encodedPort
-        ( D.decodeValue encodingRelationDecoder
-        >> Debug.log "got relation"
+        ( D.decodeValue responseDecoder
+        >> Debug.log "got response"
+        >> Result.mapError ProtocolError
+        >> Result.andThen identity
         >> translate
         )
-decoded : (Result D.Error EncodingRelation -> msg) -> Sub msg
+decoded : (Result Error EncodingRelation -> msg) -> Sub msg
 decoded translate =
     decodedPort
-        ( D.decodeValue encodingRelationDecoder
-        >> Debug.log "got relation"
+        ( D.decodeValue responseDecoder
+        >> Debug.log "got response"
+        >> Result.mapError ProtocolError
+        >> Result.andThen identity
         >> translate
         )

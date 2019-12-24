@@ -122,8 +122,8 @@ wrapInPre s =
 type Msg
   = LinkClicked Browser.UrlRequest
   | UrlChanged Url.Url
-  | Decoded B64Lzma.EncodingRelation
-  | Encoded B64Lzma.EncodingRelation
+  | Decoded (Result B64Lzma.Error B64Lzma.EncodingRelation)
+  | Encoded (Result B64Lzma.Error B64Lzma.EncodingRelation)
   | UserPasted Clipboard.PastedData
   | TitleAltered String
   | TrustToggled Bool
@@ -146,14 +146,22 @@ update msg model =
     UrlChanged url ->
         startDecoding url model
 
-    Encoded {plaintext, encoded} ->
+    Encoded (Err e) ->
+        ( { model | errors = (Debug.toString e) :: model.errors }
+        , Cmd.none
+        )
+    Encoded (Ok {plaintext, encoded}) ->
         ( model
         , if plaintext == model.body
             then replaceUrl model.key (Fragments.addToUrl (Just (Fragments.build model.title encoded)) model.url)
             else Cmd.none
         )
 
-    Decoded {plaintext, encoded} ->
+    Decoded (Err e) ->
+        ( { model | errors = (Debug.toString e) :: model.errors }
+        , Cmd.none
+        )
+    Decoded (Ok {plaintext, encoded}) ->
         ( if Just encoded == getEncodedBody model
             then { model | body=plaintext }
             else model
@@ -219,8 +227,8 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ B64Lzma.decoded (Result.map Decoded >> Result.mapError (Debug.log "error parsing decoded response") >> Result.withDefault Ignore)
-        , B64Lzma.encoded (Result.map Encoded >> Result.mapError (Debug.log "error parsing encoded response") >> Result.withDefault Ignore)
+        [ B64Lzma.decoded Decoded
+        , B64Lzma.encoded Encoded
         , Clipboard.userPasted (Result.map UserPasted >> Result.withDefault Ignore)
         ]
 

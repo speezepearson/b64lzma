@@ -14,10 +14,10 @@ function initMain() {
       },
     });
     app.ports.decodePort.subscribe(function(encoded) {
-      B64Lzma.b64lzmaDecode(encoded, (plaintext) => app.ports.decodedPort.send({plaintext, encoded}));
+      B64Lzma.b64lzmaDecode(encoded, (plaintext, error) => app.ports.decodedPort.send(error ? {error: error.toString()} : {plaintext, encoded}));
     });
-    app.ports.encodePort.subscribe(function(plaintext) {
-      B64Lzma.b64lzmaEncode(plaintext, (encoded) => app.ports.encodedPort.send({plaintext, encoded}));
+    app.ports.encodePort.subscribe(function(plaintext, error) {
+      B64Lzma.b64lzmaEncode(plaintext, (encoded, error) => app.ports.encodedPort.send(error ? {error: error.toString()} : {plaintext, encoded}));
     });
 
     window.addEventListener('paste', function(event) {
