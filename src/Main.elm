@@ -74,6 +74,18 @@ getEncodedBody model =
     |> Maybe.map Fragments.getEncodedBody
 
 
+-- adapted from https://github.com/marcosh/elm-html-to-unicode/blob/1.0.3/src/ElmEscapeHtml.elm
+-- less efficient for simplicity; this is not in any tight loops at time of writing
+htmlEscape : String -> String
+htmlEscape s =
+    s
+    |> String.replace "&" "&amp;"
+    |> String.replace "<" "&lt;"
+    |> String.replace ">" "&gt;"
+    |> String.replace "\"" "&quot;"
+    |> String.replace "'" "&#39;"
+
+
 -- UPDATE
 
 
@@ -119,7 +131,15 @@ update msg model =
     UserPasted pastedData ->
         let
             body : String
-            body = pastedData.html |> Maybe.withDefault (pastedData.plainText |> Maybe.withDefault "")
+            body =
+                case pastedData.html of
+                    Just h -> h
+                    Nothing -> case pastedData.plainText of
+                        Just raw -> "<pre>" ++ htmlEscape raw ++ "</pre>"
+                        Nothing ->
+                            Debug.log
+                                ("warning: no content extracted from pasted data " ++ Debug.toString pastedData)
+                                ""
         in
             ( { model | body = body }
             , B64Lzma.encode body
