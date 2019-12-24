@@ -60,7 +60,7 @@ type alias Model =
   , trusted : Bool
   , pasteMode : PasteMode
   , interopConstants : InteropConstants
-  -- , errors: List String
+  , errors: List String
   }
 
 init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -73,6 +73,7 @@ init flags url key =
         , trusted = False
         , pasteMode = PasteAuto
         , interopConstants = flags.interopConstants
+        , errors = []
         }
 
 startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
@@ -83,7 +84,9 @@ startDecoding url model =
             , Cmd.none
             )
         Just (Err e) ->
-            Debug.todo <| "invalid fragment in URL: " ++ Url.toString url
+            ( { model | errors = ("invalid fragment: " ++ Debug.toString e) :: model.errors }
+            , Cmd.none
+            )
         Just (Ok fragment) ->
             ( { model | url=url, title=Fragments.getTitle fragment }
             , B64Lzma.decode <| Fragments.getEncodedBody fragment
@@ -125,6 +128,7 @@ type Msg
   | TitleAltered String
   | TrustToggled Bool
   | PasteModeToggled PasteMode
+  | DismissErrors
   | Ignore
 
 
@@ -158,32 +162,28 @@ update msg model =
 
     UserPasted pastedData ->
         let
-            plainTextModeBodyOrWarn : () -> String
-            plainTextModeBodyOrWarn () =
-                case pastedData.plainText of
-                    Just raw -> wrapInPre raw
-                    Nothing -> -- TODO: improve errors
-                        Debug.log
-                            ("warning: no text/plain data in " ++ Debug.toString pastedData)
-                            ""
-            body : String
-            body = case model.pasteMode of
+            (body, errors) = case model.pasteMode of
                 PasteText ->
-                    plainTextModeBodyOrWarn ()
+                    case pastedData.plainText of
+                        Just raw -> (wrapInPre raw, [])
+                        Nothing -> ("", ["no plain text data in paste"])
                 PasteHtml ->
                     case pastedData.html of
-                        Just h -> h
-                        Nothing -> -- TODO: improve errors
-                            Debug.log
-                                ("warning: no text/html data in " ++ Debug.toString pastedData ++ "; falling back to text/plain")
-                                (plainTextModeBodyOrWarn ())
+                        Just h -> (h, [])
+                        Nothing ->
+                            case pastedData.plainText of
+                                Just raw -> (wrapInPre raw, ["no html data in paste; fell back to plain text"])
+                                Nothing -> ("", ["no html or plain text data in paste"])
 
                 PasteAuto ->
                     case pastedData.html of
-                        Just h -> h
-                        Nothing -> plainTextModeBodyOrWarn ()
+                        Just h -> (h, [])
+                        Nothing ->
+                            case pastedData.plainText of
+                                Just raw -> (wrapInPre raw, [])
+                                Nothing -> ("", ["no html or plain text data in paste"])
         in
-            ( { model | body = body }
+            ( { model | body = body, errors = errors++model.errors }
             , B64Lzma.encode body
             )
 
@@ -199,6 +199,11 @@ update msg model =
 
     PasteModeToggled mode ->
         ( { model | pasteMode = mode }
+        , Cmd.none
+        )
+
+    DismissErrors ->
+        ( { model | errors = [] }
         , Cmd.none
         )
 
@@ -240,6 +245,7 @@ view model =
     , body =
         [ fullpage
             [ viewHeader model
+            , viewErrors model
             , viewBody model
             ]
         ]
@@ -318,6 +324,17 @@ viewPasteInfo model =
         , msg=(PasteModeToggled PasteAuto)
         }
     ]
+
+
+viewErrors : Model -> Html Msg
+viewErrors model =
+    if List.isEmpty model.errors
+        then text ""
+        else div [style "color" "purple", style "margin" "5px", style "border" "1px solid purple"]
+            [ text "Errors:"
+            , ul [] (List.map (\s -> li [] [text s]) model.errors)
+            , button [ onClick DismissErrors ] [text "Dismiss"]
+            ]
 
 
 viewBody : Model -> Html Msg
