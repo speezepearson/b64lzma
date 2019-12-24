@@ -66,6 +66,13 @@ startDecoding url model =
             , B64Lzma.decode <| Fragments.getEncodedBody fragment
             )
 
+getEncodedBody : Model -> Maybe B64Lzma
+getEncodedBody model =
+    model.url
+    |> Fragments.parseUrl
+    |> Maybe.andThen Result.toMaybe
+    |> Maybe.map Fragments.getEncodedBody
+
 
 -- UPDATE
 
@@ -97,11 +104,15 @@ update msg model =
 
     Encoded {plaintext, encoded} ->
         ( model
-        , replaceUrl model.key (Fragments.addToUrl (Just (Fragments.build model.title encoded)) model.url)
+        , if plaintext == model.body
+            then replaceUrl model.key (Fragments.addToUrl (Just (Fragments.build model.title encoded)) model.url)
+            else Cmd.none
         )
 
     Decoded {plaintext, encoded} ->
-        ( { model | body=plaintext }
+        ( if Just encoded == getEncodedBody model
+            then { model | body=plaintext }
+            else model
         , Cmd.none
         )
 
