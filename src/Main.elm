@@ -145,47 +145,50 @@ view : Model -> Browser.Document Msg
 view model =
     { title = if String.isEmpty model.title then "Elm-Ittybitty" else model.title
     , body =
-        [ div
-            [ style "width" "100%"
-            , style "display" "flex"
-            , style "flex-direction" "row"
-            , style "justify-content" "space-between"
-            ]
-            [ div [style "width" "30%"]
-                [ text "Don't trust the red box any more than you trust the link you clicked on."
-                , br [] []
-                , input [ id "trusted-toggle"
-                        , type_ "checkbox"
-                        , value (if model.trusted then "on" else "off")
-                        , Html.Events.onClick (TrustToggled <| not model.trusted)
-                        ]
-                        []
-                , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
-                ]
-            , div [style "width" "40%"] [textarea [ placeholder "Title"
-                                                  , value model.title
-                                                  , style "text-align" "center"
-                                                  , style "font-weight" "700"
-                                                  , style "font-size" "1em"
-                                                  , style "width" "100%"
-                                                  , style "resize" "none"
-                                                  , style "border" "0"
-                                                  , Html.Events.onInput TitleAltered
-                                                  ]
-                                                  [] ]
-            , div [style "width" "30%", style "color" "gray", style "text-align" "right"]
-                [ input [ value ""
-                        , style "width" "100%"
-                        , placeholder "Paste here to set the page content."
-                        , id "body-setter"
-                        ]
-                        []
-                ]
-            ]
+        [ viewHeader model
         , viewBody model
         ]
     }
 
+viewHeader : Model -> Html Msg
+viewHeader model =
+    div
+        [ style "width" "100%"
+        , style "display" "flex"
+        , style "flex-direction" "row"
+        , style "justify-content" "space-between"
+        ]
+        [ div [style "width" "30%"]
+            [ text "Don't trust the red box any more than you trust the link you clicked on."
+            , br [] []
+            , input [ id "trusted-toggle"
+                    , type_ "checkbox"
+                    , value (if model.trusted then "on" else "off")
+                    , Html.Events.onClick (TrustToggled <| not model.trusted)
+                    ]
+                    []
+            , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
+            ]
+        , div [style "width" "40%"] [textarea [ placeholder "Title"
+                                              , value model.title
+                                              , style "text-align" "center"
+                                              , style "font-weight" "700"
+                                              , style "font-size" "1em"
+                                              , style "width" "100%"
+                                              , style "resize" "none"
+                                              , style "border" "0"
+                                              , Html.Events.onInput TitleAltered
+                                              ]
+                                              [] ]
+        , div [style "width" "30%", style "color" "gray", style "text-align" "right"]
+            [ input [ value ""
+                    , style "width" "100%"
+                    , placeholder "Paste here to set the page content."
+                    , id "body-setter"
+                    ]
+                    []
+            ]
+        ]
 viewBody : Model -> Html Msg
 viewBody model =
     iframe
