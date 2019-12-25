@@ -38,6 +38,12 @@ main =
 
 -- MODEL
 
+type BodyState
+    = NoFragment
+    | Encoding String
+    | Decoding B64Lzma
+    | Stable B64Lzma.EncodingRelation
+
 type PasteMode
     = PasteText
     | PasteHtml
@@ -47,7 +53,7 @@ type alias Model =
   { key : Nav.Key
   , url : Url.Url
   , title : String
-  , body : String
+  , body : BodyState
   , trusted : Bool
   , pasteMode : PasteMode
   , interopConstants : InteropConstants
@@ -60,7 +66,7 @@ init flags url key =
         { key = key
         , url = url
         , title = ""
-        , body = ""
+        , body = NoFragment
         , trusted = False
         , pasteMode = PasteAuto
         , interopConstants = flags.interopConstants
@@ -71,24 +77,19 @@ startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
 startDecoding url model =
     case Fragments.parseUrl url of
         Nothing ->
-            ( { model | url=url }
+            ( { model | url = url, body = NoFragment }
             , Cmd.none
             )
         Just (Err e) ->
-            ( { model | errors = ("invalid fragment: " ++ Debug.toString e) :: model.errors }
+            ( { model | url = url, errors = ("invalid fragment: " ++ Debug.toString e) :: model.errors }
             , Cmd.none
             )
         Just (Ok fragment) ->
-            ( { model | url=url, title=Fragments.getTitle fragment }
-            , B64Lzma.decode <| Fragments.getEncodedBody fragment
-            )
-
-getEncodedBody : Model -> Maybe B64Lzma
-getEncodedBody model =
-    model.url
-    |> Fragments.parseUrl
-    |> Maybe.andThen Result.toMaybe
-    |> Maybe.map Fragments.getEncodedBody
+            let encodedBody = Fragments.getEncodedBody fragment
+            in
+                ( { model | url = url, body = Decoding encodedBody, title=Fragments.getTitle fragment }
+                , B64Lzma.decode encodedBody
+                )
 
 
 -- adapted from https://github.com/marcosh/elm-html-to-unicode/blob/1.0.3/src/ElmEscapeHtml.elm
@@ -122,6 +123,19 @@ type Msg
   | DismissErrors
   | Ignore
 
+pushOrReplaceFragment : Nav.Key -> Fragment -> Url.Url -> Cmd msg
+pushOrReplaceFragment key fragment url =
+    let
+        newUrl : Url.Url
+        newUrl = Fragments.addToUrl (Just fragment) url
+
+        pushOrReplace : Nav.Key -> String -> Cmd msg
+        pushOrReplace =
+            if url.fragment == Nothing
+                then Nav.pushUrl
+                else Nav.replaceUrl
+    in
+        pushOrReplace key (Url.toString newUrl)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -141,26 +155,32 @@ update msg model =
         ( { model | errors = ("Error encoding: " ++ Debug.toString e) :: model.errors }
         , Cmd.none
         )
-    Encoded (Ok {plaintext, encoded}) ->
-        ( model
-        , if plaintext == model.body
-            then
-                (if model.url.fragment == Nothing then Nav.pushUrl else Nav.replaceUrl)
-                    model.key
-                    (Url.toString (Fragments.addToUrl (Just (Fragments.build model.title encoded)) model.url))
-            else Cmd.none
-        )
+    Encoded (Ok relation) ->
+        case model.body of
+            Encoding body ->
+              if relation.plaintext == body
+                then
+                    ( { model | body = Stable relation }
+                    , pushOrReplaceFragment model.key (Fragments.build model.title relation.encoded) model.url
+                    )
+                else
+                    ( model , Cmd.none )
+            _ -> ( model , Cmd.none )
 
     Decoded (Err e) ->
         ( { model | errors = ("Error decoding: " ++ Debug.toString e) :: model.errors }
         , Cmd.none
         )
-    Decoded (Ok {plaintext, encoded}) ->
-        ( if Just encoded == getEncodedBody model
-            then { model | body=plaintext, errors=[] }
-            else model
-        , Cmd.none
-        )
+    Decoded (Ok relation) ->
+        case model.body of
+            Decoding encodedBody ->
+                if relation.encoded == encodedBody
+                    then
+                        ( { model | body = Stable relation, errors=[] }
+                        , Cmd.none
+                        )
+                    else ( model , Cmd.none )
+            _ -> ( model , Cmd.none )
 
     UserPasted pastedData ->
         let
@@ -185,7 +205,7 @@ update msg model =
                                 Just raw -> (wrapInPre raw, [])
                                 Nothing -> ("", ["no html or plain text data in paste"])
         in
-            ( { model | body = body, errors = errors++model.errors }
+            ( { model | body = Encoding body, errors = errors++model.errors }
             , B64Lzma.encode body
             )
 
@@ -261,18 +281,7 @@ viewHeader model =
         , style "flex-direction" "row"
         , style "justify-content" "space-between"
         ]
-        [ div [style "width" "30%"]
-            [ text "Don't trust the red box any more than you trust the link you clicked on."
-            , br [] []
-            , input [ id "trusted-toggle"
-                    , type_ "checkbox"
-                    , value (if model.trusted then "on" else "off")
-                    , onClick (TrustToggled <| not model.trusted)
-                    ]
-                    []
-            , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
-            ]
-        , div [style "width" "40%"] [textarea [ placeholder "Title"
+        [ div [style "width" "40%"] [textarea [ placeholder "Title"
                                               , value model.title
                                               , class model.interopConstants.ignorePasteClass
                                               , style "text-align" "center"
@@ -341,12 +350,30 @@ viewErrors model =
 
 viewBody : Model -> Html Msg
 viewBody model =
-    iframe
-        [ srcdoc (model.body ++ (if model.trusted then "" else " ")) -- XXX: hack to reload iframe to evade cached permissions
-        , sandbox (if model.trusted then "allow-scripts allow-modals" else "")
-        , style "border" "1px solid red"
-        , style "margin" "1%"
-        , style "width" "98%"
-        , style "height" "95%"
-        ]
-        []
+    let
+        grayCentered contents = div [ style "text-align" "center", style "width" "100%", style "color" "gray" ] contents
+    in
+        case model.body of
+            NoFragment -> grayCentered [text "no content yet; try pasting something"]
+            Encoding _ -> grayCentered [text "encoding..."]
+            Decoding _ -> grayCentered [text "decoding..."]
+            Stable {plaintext} ->
+                div [ style "text-align" "center", style "width" "100%" ]
+                    [ text "Don't trust this red box any more than you trust the link you clicked / content you pasted."
+                    , input [ id "trusted-toggle"
+                            , type_ "checkbox"
+                            , value (if model.trusted then "on" else "off")
+                            , onClick (TrustToggled <| not model.trusted)
+                            ]
+                            []
+                    , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
+                    , iframe
+                        [ srcdoc (plaintext ++ (if model.trusted then "" else " ")) -- XXX: hack to reload iframe to evade cached permissions
+                        , sandbox (if model.trusted then "allow-scripts allow-modals" else "")
+                        , style "border" "1px solid red"
+                        , style "margin" "1%"
+                        , style "width" "98%"
+                        , style "height" "95%"
+                        ]
+                        []
+                    ]
