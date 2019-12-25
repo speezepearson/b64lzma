@@ -336,9 +336,9 @@ viewRadio args =
 viewPasteInfo : Model -> List (Html Msg)
 viewPasteInfo model =
     [ details []
-        [ summary [] [text "Paste anywhere to set the page content."]
+        [ summary [] [text "(more) Paste anywhere to set the page content."]
         , br [] []
-        , text "By default, the content-type (html, text, ...) of the pasted data is magically inferred; Override? "
+        , text "By default, the content-type (html, text, ...) of the pasted data is magically inferred. Use this dropdown to override: "
         , select
             [ onInput (\s -> PasteContentTypeToggled <| case s of
                 "ContentTypeAuto" -> ContentTypeAuto
@@ -347,9 +347,9 @@ viewPasteInfo model =
                 _ -> Debug.todo "impossible"
                 )
             ]
-            [ option [ value "ContentTypeAuto", selected (model.pasteContentType == ContentTypeAuto) ] [text "Auto"]
-            , option [ value "ContentTypeHtml", selected (model.pasteContentType == ContentTypeHtml) ] [text "Html"]
-            , option [ value "ContentTypeText", selected (model.pasteContentType == ContentTypeText) ] [text "Text"]
+            [ option [ value "ContentTypeAuto", selected (model.pasteContentType == ContentTypeAuto) ] [text "(auto)"]
+            , option [ value "ContentTypeHtml", selected (model.pasteContentType == ContentTypeHtml) ] [text "HTML"]
+            , option [ value "ContentTypeText", selected (model.pasteContentType == ContentTypeText) ] [text "plain text"]
             ]
         ]
     ]
