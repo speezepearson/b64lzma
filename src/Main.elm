@@ -336,7 +336,10 @@ viewRadio args =
 viewPasteInfo : Model -> List (Html Msg)
 viewPasteInfo model =
     [ details []
-        [ summary [] [text "(more) Paste anywhere to set the page content."]
+        [ summary []
+            [ text "(more) "
+            , input [placeholder "Paste here to set the page content."] []
+            ]
         , br [] []
         , text "By default, the content-type (html, text, ...) of the pasted data is magically inferred. Use this dropdown to override: "
         , select
@@ -379,7 +382,7 @@ viewBody model =
                 div [ style "text-align" "center", style "width" "100%", style "height" "100%" ]
                     [ if model.showTrustToast
                         then div [style "border" "1px dashed black"]
-                            [ text "The stuff in the red box below is no more credible or safe than the link you clicked on / the content you pasted."
+                            [ text "The stuff in the red box below is no more credible or safe than the link you clicked on to get to this page (or the content you pasted to create this page)."
                             , br [] []
                             , input [ id "trusted-toggle"
                                     , type_ "checkbox"
@@ -389,7 +392,7 @@ viewBody model =
                                     []
                             , label [for "trusted-toggle"] [text "Allow it to run JavaScript, etc?"]
                             , text " | "
-                            , button [onClick DismissTrustToast] [text "Dismiss warning"]
+                            , button [onClick DismissTrustToast] [text "Hide warning"]
                             ]
                         else text ""
                     , iframe
