@@ -85,10 +85,26 @@ startDecoding url model =
             , Cmd.none
             )
         Just (Ok fragment) ->
-            let encodedBody = Fragments.getEncodedBody fragment
+            let
+                encodedBody : B64Lzma
+                encodedBody = Fragments.getEncodedBody fragment
+
+                bodyChanged : Bool
+                bodyChanged = case model.body of
+                    Stable relation -> (relation.encoded /= encodedBody)
+                    Decoding alreadyDecoding -> (alreadyDecoding /= encodedBody)
+                    _ -> True
+
+                (newBody, cmd) =
+                    if bodyChanged
+                        then (Decoding encodedBody, B64Lzma.decode encodedBody)
+                        else (model.body, Cmd.none)
             in
-                ( { model | url = url, body = Decoding encodedBody, title=Fragments.getTitle fragment }
-                , B64Lzma.decode encodedBody
+                ( { model | url = url
+                          , title = Fragments.getTitle fragment
+                          , body = newBody
+                          }
+                , cmd
                 )
 
 
