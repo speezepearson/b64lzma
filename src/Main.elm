@@ -314,27 +314,18 @@ viewPasteInfo : Model -> List (Html Msg)
 viewPasteInfo model =
     [ text "Paste to set content."
     , br [] []
-    , text "Type: "
-    , viewRadio
-        { id="set-paste-mode-Text"
-        , label=[text "text"]
-        , checked=(model.pasteMode == PasteText)
-        , msg=(PasteModeToggled PasteText)
-        }
-    , text " "
-    , viewRadio
-        { id="set-paste-mode-Html"
-        , label=[text "html"]
-        , checked=(model.pasteMode == PasteHtml)
-        , msg=(PasteModeToggled PasteHtml)
-        }
-    , text " "
-    , viewRadio
-        { id="set-paste-mode-Auto"
-        , label=[text "auto"]
-        , checked=(model.pasteMode == PasteAuto)
-        , msg=(PasteModeToggled PasteAuto)
-        }
+    , select
+        [ onInput (\s -> PasteModeToggled <| case s of
+            "PasteAuto" -> PasteAuto
+            "PasteHtml" -> PasteHtml
+            "PasteText" -> PasteText
+            _ -> Debug.todo "impossible"
+            )
+        ]
+        [ option [ value "PasteAuto", selected (model.pasteMode == PasteAuto) ] [text "Auto"]
+        , option [ value "PasteHtml", selected (model.pasteMode == PasteHtml) ] [text "Html"]
+        , option [ value "PasteText", selected (model.pasteMode == PasteText) ] [text "Text"]
+        ]
     ]
 
 
