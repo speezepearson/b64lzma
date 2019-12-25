@@ -15,7 +15,7 @@ import Ittybitty.Fragments as Fragments exposing (Fragment)
 -- MAIN
 
 type alias InteropConstants =
-    { ignorePasteClass : String
+    { capturePasteClass : String
     }
 
 type alias Flags =
@@ -307,7 +307,6 @@ viewHeader model =
         [ div [style "width" "30%"] []
         , div [style "width" "40%"] [textarea [ placeholder "Title"
                                               , value model.title
-                                              , class model.interopConstants.ignorePasteClass
                                               , style "text-align" "center"
                                               , style "font-weight" "700"
                                               , style "font-size" "1em"
@@ -335,12 +334,19 @@ viewRadio args =
 
 viewPasteInfo : Model -> List (Html Msg)
 viewPasteInfo model =
-    [ details []
+    [ input
+        [ onInput (always Ignore)
+        , value ""
+         -- ^^ HACK: make Elm re-render on input, to keep this box empty
+        , placeholder "Paste here to set the page content."
+        , style "width" "90%"
+        , class model.interopConstants.capturePasteClass
+        ]
+        []
+    , details []
         [ summary []
-            [ text "(more) "
-            , input [placeholder "Paste here to set the page content."] []
+            [ text "(click for details)"
             ]
-        , br [] []
         , text "By default, the content-type (html, text, ...) of the pasted data is magically inferred. Use this dropdown to override: "
         , select
             [ onInput (\s -> PasteContentTypeToggled <| case s of

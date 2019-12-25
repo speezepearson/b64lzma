@@ -2,14 +2,14 @@ function debugLog(...xs) {
   console.log(...xs)
 }
 
-var ignorePasteClass = "elm-ignore-paste";
+var capturePasteClass = "elm-capture-paste";
 
 function initMain() {
     var app = Elm.Main.init({
       node: document.getElementById('elm'),
       flags: {
         interopConstants: {
-          ignorePasteClass: ignorePasteClass,
+          capturePasteClass: capturePasteClass,
         },
       },
     });
@@ -21,7 +21,7 @@ function initMain() {
     });
 
     window.addEventListener('paste', function(event) {
-      if (event.target.classList.contains(ignorePasteClass)) {
+      if (!event.target.classList.contains(capturePasteClass)) {
           return;
       }
       var data = (event.clipboardData || window.clipboardData)
