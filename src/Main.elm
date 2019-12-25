@@ -13,15 +13,6 @@ import Ittybitty.Fragments as Fragments exposing (Fragment)
 import Ittybitty.PageInfo exposing (PageInfo, EncodingRelation)
 
 
-replaceUrl : Nav.Key -> Url.Url -> Cmd msg
-replaceUrl key url =
-    Nav.replaceUrl key (Debug.log "pushing url" (Url.toString url))
-
-setFragment : Fragment -> Url.Url -> Url.Url
-setFragment fragment url =
-    { url | fragment = Just (Fragments.toString fragment) }
-
-
 -- MAIN
 
 type alias InteropConstants =
@@ -144,7 +135,7 @@ update msg model =
           ( model, Nav.load href )
 
     UrlChanged url ->
-        startDecoding url model
+        startDecoding (Debug.log "navigated to" url) model
 
     Encoded (Err e) ->
         ( { model | errors = ("Error encoding: " ++ Debug.toString e) :: model.errors }
@@ -153,7 +144,10 @@ update msg model =
     Encoded (Ok {plaintext, encoded}) ->
         ( model
         , if plaintext == model.body
-            then replaceUrl model.key (Fragments.addToUrl (Just (Fragments.build model.title encoded)) model.url)
+            then
+                (if model.url.fragment == Nothing then Nav.pushUrl else Nav.replaceUrl)
+                    model.key
+                    (Url.toString (Fragments.addToUrl (Just (Fragments.build model.title encoded)) model.url))
             else Cmd.none
         )
 
@@ -197,7 +191,7 @@ update msg model =
 
     TitleAltered title ->
         ( { model | title = title }
-        , replaceUrl model.key (Fragments.mapUrl (\f -> Fragments.build title (Fragments.getEncodedBody f)) model.url)
+        , Nav.replaceUrl model.key (Url.toString (Fragments.mapUrl (\f -> Fragments.build title (Fragments.getEncodedBody f)) model.url))
         )
 
     TrustToggled trusted ->
