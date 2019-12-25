@@ -281,7 +281,8 @@ viewHeader model =
         , style "flex-direction" "row"
         , style "justify-content" "space-between"
         ]
-        [ div [style "width" "40%"] [textarea [ placeholder "Title"
+        [ div [style "width" "30%"] []
+        , div [style "width" "40%"] [textarea [ placeholder "Title"
                                               , value model.title
                                               , class model.interopConstants.ignorePasteClass
                                               , style "text-align" "center"
@@ -311,7 +312,7 @@ viewRadio args =
 
 viewPasteInfo : Model -> List (Html Msg)
 viewPasteInfo model =
-    [ text "Paste anywhere (outside red box) to set content."
+    [ text "Paste to set content."
     , br [] []
     , text "Type: "
     , viewRadio
@@ -354,12 +355,13 @@ viewBody model =
         grayCentered contents = div [ style "text-align" "center", style "width" "100%", style "color" "gray" ] contents
     in
         case model.body of
-            NoFragment -> grayCentered [text "no content yet; try pasting something"]
+            NoFragment -> grayCentered [text "No content yet; try pasting something, then share the URL!"]
             Encoding _ -> grayCentered [text "encoding..."]
             Decoding _ -> grayCentered [text "decoding..."]
             Stable {plaintext} ->
                 div [ style "text-align" "center", style "width" "100%" ]
                     [ text "Don't trust this red box any more than you trust the link you clicked / content you pasted."
+                    , br [] []
                     , input [ id "trusted-toggle"
                             , type_ "checkbox"
                             , value (if model.trusted then "on" else "off")
