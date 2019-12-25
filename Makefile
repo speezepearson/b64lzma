@@ -1,7 +1,10 @@
-all: dist/index.html dist/b64lzma.js dist/main.js dist/elm.js dist/lzma/lzma-d-min.js dist/lzma/lzma_worker-min.js
+all: bundle
 
 serve:
 	python3 -m http.server --bind 127.0.0.1 34348
+
+bundle: dist/index.html dist/b64lzma.js dist/main.js dist/elm.js dist/lzma/lzma-d-min.js dist/lzma/lzma_worker-min.js
+	python3 bundle.py dist/index.html
 
 dist/lzma/%: lib/lzma/%
 	mkdir -p dist/lzma
