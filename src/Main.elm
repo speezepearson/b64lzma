@@ -350,7 +350,7 @@ viewBody model =
             Encoding _ -> grayCentered [text "encoding..."]
             Decoding _ -> grayCentered [text "decoding..."]
             Stable {plaintext} ->
-                div [ style "text-align" "center", style "width" "100%" ]
+                div [ style "text-align" "center", style "width" "100%", style "height" "100%" ]
                     [ text "Don't trust this red box any more than you trust the link you clicked / content you pasted."
                     , br [] []
                     , input [ id "trusted-toggle"
