@@ -56,6 +56,7 @@ type alias Model =
   , trusted : Bool
   , pasteContentType : PasteContentType
   , interopConstants : InteropConstants
+  , showTrustToast : Bool
   , errors: List String
   }
 
@@ -69,6 +70,7 @@ init flags url key =
         , trusted = False
         , pasteContentType = ContentTypeAuto
         , interopConstants = flags.interopConstants
+        , showTrustToast = True
         , errors = []
         }
 
@@ -134,6 +136,7 @@ type Msg
   | UserPasted Clipboard.PastedData
   | TitleAltered String
   | TrustToggled Bool
+  | DismissTrustToast
   | PasteContentTypeToggled PasteContentType
   | DismissErrors
   | Ignore
@@ -241,6 +244,11 @@ update msg model =
 
     DismissErrors ->
         ( { model | errors = [] }
+        , Cmd.none
+        )
+
+    DismissTrustToast ->
+        ( { model | showTrustToast = False }
         , Cmd.none
         )
 
@@ -366,15 +374,21 @@ viewBody model =
             Decoding _ -> grayCentered [text "decoding..."]
             Stable {plaintext} ->
                 div [ style "text-align" "center", style "width" "100%", style "height" "100%" ]
-                    [ text "Don't trust this red box any more than you trust the link you clicked / content you pasted."
-                    , br [] []
-                    , input [ id "trusted-toggle"
-                            , type_ "checkbox"
-                            , value (if model.trusted then "on" else "off")
-                            , onClick (TrustToggled <| not model.trusted)
+                    [ if model.showTrustToast
+                        then div [style "border" "1px dashed black"]
+                            [ text "Don't trust the red box below any more than you trust the link you clicked / content you pasted."
+                            , br [] []
+                            , input [ id "trusted-toggle"
+                                    , type_ "checkbox"
+                                    , value (if model.trusted then "on" else "off")
+                                    , onClick (TrustToggled <| not model.trusted)
+                                    ]
+                                    []
+                            , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
+                            , text " | "
+                            , button [onClick DismissTrustToast] [text "Dismiss warning"]
                             ]
-                            []
-                    , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
+                        else text ""
                     , iframe
                         [ srcdoc (plaintext ++ (if model.trusted then "" else " ")) -- XXX: hack to reload iframe to evade cached permissions
                         , sandbox (if model.trusted then "allow-scripts allow-modals" else "")
