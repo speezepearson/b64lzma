@@ -147,7 +147,7 @@ update msg model =
         startDecoding url model
 
     Encoded (Err e) ->
-        ( { model | errors = (Debug.toString e) :: model.errors }
+        ( { model | errors = ("Error encoding: " ++ Debug.toString e) :: model.errors }
         , Cmd.none
         )
     Encoded (Ok {plaintext, encoded}) ->
@@ -158,12 +158,12 @@ update msg model =
         )
 
     Decoded (Err e) ->
-        ( { model | errors = (Debug.toString e) :: model.errors }
+        ( { model | errors = ("Error decoding: " ++ Debug.toString e) :: model.errors }
         , Cmd.none
         )
     Decoded (Ok {plaintext, encoded}) ->
         ( if Just encoded == getEncodedBody model
-            then { model | body=plaintext }
+            then { model | body=plaintext, errors=[] }
             else model
         , Cmd.none
         )
