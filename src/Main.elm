@@ -317,7 +317,7 @@ viewHeader model =
                                               , onInput TitleAltered
                                               ]
                                               [] ]
-        , div [style "width" "30%", style "color" "gray", style "text-align" "right"]
+        , div [style "width" "30%", style "color" "gray"]
             (viewPasteInfo model)
         ]
 
@@ -335,19 +335,22 @@ viewRadio args =
 
 viewPasteInfo : Model -> List (Html Msg)
 viewPasteInfo model =
-    [ text "Paste to set content."
-    , br [] []
-    , select
-        [ onInput (\s -> PasteContentTypeToggled <| case s of
-            "ContentTypeAuto" -> ContentTypeAuto
-            "ContentTypeHtml" -> ContentTypeHtml
-            "ContentTypeText" -> ContentTypeText
-            _ -> Debug.todo "impossible"
-            )
-        ]
-        [ option [ value "ContentTypeAuto", selected (model.pasteContentType == ContentTypeAuto) ] [text "Auto"]
-        , option [ value "ContentTypeHtml", selected (model.pasteContentType == ContentTypeHtml) ] [text "Html"]
-        , option [ value "ContentTypeText", selected (model.pasteContentType == ContentTypeText) ] [text "Text"]
+    [ details []
+        [ summary [] [text "Paste anywhere to set the page content."]
+        , br [] []
+        , text "By default, the content-type (html, text, ...) of the pasted data is magically inferred; Override? "
+        , select
+            [ onInput (\s -> PasteContentTypeToggled <| case s of
+                "ContentTypeAuto" -> ContentTypeAuto
+                "ContentTypeHtml" -> ContentTypeHtml
+                "ContentTypeText" -> ContentTypeText
+                _ -> Debug.todo "impossible"
+                )
+            ]
+            [ option [ value "ContentTypeAuto", selected (model.pasteContentType == ContentTypeAuto) ] [text "Auto"]
+            , option [ value "ContentTypeHtml", selected (model.pasteContentType == ContentTypeHtml) ] [text "Html"]
+            , option [ value "ContentTypeText", selected (model.pasteContentType == ContentTypeText) ] [text "Text"]
+            ]
         ]
     ]
 
@@ -376,7 +379,7 @@ viewBody model =
                 div [ style "text-align" "center", style "width" "100%", style "height" "100%" ]
                     [ if model.showTrustToast
                         then div [style "border" "1px dashed black"]
-                            [ text "Don't trust the red box below any more than you trust the link you clicked / content you pasted."
+                            [ text "The stuff in the red box below is no more credible or safe than the link you clicked on / the content you pasted."
                             , br [] []
                             , input [ id "trusted-toggle"
                                     , type_ "checkbox"
@@ -384,7 +387,7 @@ viewBody model =
                                     , onClick (TrustToggled <| not model.trusted)
                                     ]
                                     []
-                            , label [for "trusted-toggle"] [text "Allow scripts, etc?"]
+                            , label [for "trusted-toggle"] [text "Allow it to run JavaScript, etc?"]
                             , text " | "
                             , button [onClick DismissTrustToast] [text "Dismiss warning"]
                             ]
