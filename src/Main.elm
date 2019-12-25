@@ -44,10 +44,10 @@ type BodyState
     | Decoding B64Lzma
     | Stable B64Lzma.EncodingRelation
 
-type PasteMode
-    = PasteText
-    | PasteHtml
-    | PasteAuto
+type PasteContentType
+    = ContentTypeText
+    | ContentTypeHtml
+    | ContentTypeAuto
 
 type alias Model =
   { key : Nav.Key
@@ -55,7 +55,7 @@ type alias Model =
   , title : String
   , body : BodyState
   , trusted : Bool
-  , pasteMode : PasteMode
+  , pasteContentType : PasteContentType
   , interopConstants : InteropConstants
   , errors: List String
   }
@@ -68,7 +68,7 @@ init flags url key =
         , title = ""
         , body = NoFragment
         , trusted = False
-        , pasteMode = PasteAuto
+        , pasteContentType = ContentTypeAuto
         , interopConstants = flags.interopConstants
         , errors = []
         }
@@ -119,7 +119,7 @@ type Msg
   | UserPasted Clipboard.PastedData
   | TitleAltered String
   | TrustToggled Bool
-  | PasteModeToggled PasteMode
+  | PasteContentTypeToggled PasteContentType
   | DismissErrors
   | Ignore
 
@@ -184,12 +184,12 @@ update msg model =
 
     UserPasted pastedData ->
         let
-            (body, errors) = case model.pasteMode of
-                PasteText ->
+            (body, errors) = case model.pasteContentType of
+                ContentTypeText ->
                     case pastedData.plainText of
                         Just raw -> (wrapInPre raw, [])
                         Nothing -> ("", ["no plain text data in paste"])
-                PasteHtml ->
+                ContentTypeHtml ->
                     case pastedData.html of
                         Just h -> (h, [])
                         Nothing ->
@@ -197,7 +197,7 @@ update msg model =
                                 Just raw -> (wrapInPre raw, ["no html data in paste; fell back to plain text"])
                                 Nothing -> ("", ["no html or plain text data in paste"])
 
-                PasteAuto ->
+                ContentTypeAuto ->
                     case pastedData.html of
                         Just h -> (h, [])
                         Nothing ->
@@ -219,8 +219,8 @@ update msg model =
         , Cmd.none
         )
 
-    PasteModeToggled mode ->
-        ( { model | pasteMode = mode }
+    PasteContentTypeToggled mode ->
+        ( { model | pasteContentType = mode }
         , Cmd.none
         )
 
@@ -315,16 +315,16 @@ viewPasteInfo model =
     [ text "Paste to set content."
     , br [] []
     , select
-        [ onInput (\s -> PasteModeToggled <| case s of
-            "PasteAuto" -> PasteAuto
-            "PasteHtml" -> PasteHtml
-            "PasteText" -> PasteText
+        [ onInput (\s -> PasteContentTypeToggled <| case s of
+            "ContentTypeAuto" -> ContentTypeAuto
+            "ContentTypeHtml" -> ContentTypeHtml
+            "ContentTypeText" -> ContentTypeText
             _ -> Debug.todo "impossible"
             )
         ]
-        [ option [ value "PasteAuto", selected (model.pasteMode == PasteAuto) ] [text "Auto"]
-        , option [ value "PasteHtml", selected (model.pasteMode == PasteHtml) ] [text "Html"]
-        , option [ value "PasteText", selected (model.pasteMode == PasteText) ] [text "Text"]
+        [ option [ value "ContentTypeAuto", selected (model.pasteContentType == ContentTypeAuto) ] [text "Auto"]
+        , option [ value "ContentTypeHtml", selected (model.pasteContentType == ContentTypeHtml) ] [text "Html"]
+        , option [ value "ContentTypeText", selected (model.pasteContentType == ContentTypeText) ] [text "Text"]
         ]
     ]
 
