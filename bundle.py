@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('target', type=Path, help='html file to inline resources into')
 
 def main(target: Path):
-    soup = bs4.BeautifulSoup(target.open(), "html.parser") 
+    soup = bs4.BeautifulSoup(target.open(), "html.parser")
 
     for tag in soup.find_all('script'):
         if 'src' in tag.attrs:
