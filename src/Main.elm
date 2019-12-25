@@ -10,7 +10,6 @@ import Json.Encode as E
 import B64Lzma exposing (B64Lzma(..))
 import Clipboard
 import Ittybitty.Fragments as Fragments exposing (Fragment)
-import Ittybitty.PageInfo exposing (PageInfo, EncodingRelation)
 
 
 -- MAIN
