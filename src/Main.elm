@@ -295,7 +295,7 @@ fullpage contents =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = if String.isEmpty model.title then "Elm-Ittybitty" else model.title
+    { title = if String.isEmpty model.title then "Base64-LZMA" else model.title
     , body =
         [ fullpage
             [ viewHeader model
