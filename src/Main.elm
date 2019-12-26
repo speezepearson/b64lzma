@@ -16,6 +16,7 @@ import Ittybitty.Fragments as Fragments exposing (Fragment)
 
 type alias InteropConstants =
     { capturePasteClass : String
+    , initAutofocusId : String
     }
 
 type alias Flags =
@@ -273,6 +274,14 @@ subscriptions model =
 
 -- VIEW
 
+pasteFieldAttrs : String -> List (Attribute Msg)
+pasteFieldAttrs capturePasteClass =
+    [ onInput (always Ignore)
+    , value ""
+    -- ^^ HACK: make Elm re-render on input, to keep this box empty
+    , class capturePasteClass
+    ]
+
 fullpage : List (Html msg) -> Html msg
 fullpage contents =
     div
@@ -335,13 +344,10 @@ viewRadio args =
 viewPasteInfo : Model -> List (Html Msg)
 viewPasteInfo model =
     [ input
-        [ onInput (always Ignore)
-        , value ""
-         -- ^^ HACK: make Elm re-render on input, to keep this box empty
-        , placeholder "Paste here to set the page content."
-        , style "width" "90%"
-        , class model.interopConstants.capturePasteClass
-        ]
+        (pasteFieldAttrs model.interopConstants.capturePasteClass ++
+            [ placeholder "Paste here to set the page content."
+            , style "width" "90%"
+            ])
         []
     , details []
         [ summary []
@@ -381,7 +387,17 @@ viewBody model =
         grayCentered contents = div [ style "text-align" "center", style "width" "100%", style "color" "gray" ] contents
     in
         case model.body of
-            NoFragment -> grayCentered [text "No content yet; try pasting something, then share the URL!"]
+            NoFragment ->
+                grayCentered
+                    [ text "No content yet; paste your desired content "
+                    , input
+                        (pasteFieldAttrs model.interopConstants.capturePasteClass ++
+                            [ placeholder "here"
+                            , style "width" "3em"
+                            , id model.interopConstants.initAutofocusId
+                            ])
+                        []
+                    , text ", then share the URL!"]
             Encoding _ -> grayCentered [text "encoding..."]
             Decoding _ -> grayCentered [text "decoding..."]
             Stable {plaintext} ->

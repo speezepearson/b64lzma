@@ -3,6 +3,7 @@ function debugLog(...xs) {
 }
 
 var capturePasteClass = "elm-capture-paste";
+var initAutofocusId = "landing-paste-prompt";
 
 function initMain() {
     var app = Elm.Main.init({
@@ -10,9 +11,12 @@ function initMain() {
       flags: {
         interopConstants: {
           capturePasteClass: capturePasteClass,
+          initAutofocusId: initAutofocusId,
         },
       },
     });
+    var landingPastePrompt = document.getElementById(initAutofocusId);
+    if (landingPastePrompt) landingPastePrompt.focus();
     app.ports.decodePort.subscribe(function(encoded) {
       B64Lzma.b64lzmaDecode(encoded, (plaintext, error) => app.ports.decodedPort.send(error ? {error: error.toString()} : {plaintext, encoded}));
     });
