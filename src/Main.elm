@@ -7,9 +7,9 @@ import Url
 import Json.Decode as D
 import Json.Encode as E
 
-import B64Lzma exposing (B64Lzma(..))
+import B64Lzma.Translation as Translation exposing (B64Lzma(..))
 import Clipboard
-import Ittybitty.Fragments as Fragments exposing (Fragment)
+import B64Lzma.Fragments as Fragments exposing (Fragment)
 
 
 -- MAIN
@@ -42,7 +42,7 @@ type BodyState
     = NoFragment
     | Encoding String
     | Decoding B64Lzma
-    | Stable B64Lzma.EncodingRelation
+    | Stable Translation.EncodingRelation
 
 type PasteContentType
     = ContentTypeText
@@ -99,7 +99,7 @@ startDecoding url model =
 
                 (newBody, cmd) =
                     if bodyChanged
-                        then (Decoding encodedBody, B64Lzma.decode encodedBody)
+                        then (Decoding encodedBody, Translation.decode encodedBody)
                         else (model.body, Cmd.none)
             in
                 ( { model | url = url
@@ -132,8 +132,8 @@ wrapInPre s =
 type Msg
   = LinkClicked Browser.UrlRequest
   | UrlChanged Url.Url
-  | Decoded (Result B64Lzma.Error B64Lzma.EncodingRelation)
-  | Encoded (Result B64Lzma.Error B64Lzma.EncodingRelation)
+  | Decoded (Result Translation.Error Translation.EncodingRelation)
+  | Encoded (Result Translation.Error Translation.EncodingRelation)
   | UserPasted Clipboard.PastedData
   | TitleAltered String
   | TrustToggled Bool
@@ -225,7 +225,7 @@ update msg model =
                                 Nothing -> ("", ["no html or plain text data in paste"])
         in
             ( { model | body = Encoding body, errors = errors++model.errors }
-            , B64Lzma.encode body
+            , Translation.encode body
             )
 
     TitleAltered title ->
@@ -265,8 +265,8 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ B64Lzma.decoded Decoded
-        , B64Lzma.encoded Encoded
+        [ Translation.decoded Decoded
+        , Translation.encoded Encoded
         , Clipboard.userPasted (Result.map UserPasted >> Result.withDefault Ignore)
         ]
 

@@ -24,6 +24,6 @@ userPasted translate =
     userPastedPort
         ( D.decodeValue pastedDataDecoder
         >> Result.mapError ProtocolError
-        >> Debug.log "got pasted data"
+        -- >> Debug.log "got pasted data"
         >> translate
         )

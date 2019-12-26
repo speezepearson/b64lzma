@@ -12,15 +12,15 @@ dist/lzma/%: lib/lzma/%
 	mkdir -p dist/lzma
 	cp "$<" "$@"
 
-dist/index.html: src/index.html
+dist/index.html: src/Native/index.html
 	mkdir -p dist
 	cp "$<" "$@"
 
-dist/main.js: src/main.js
+dist/main.js: src/Native/main.js
 	mkdir -p dist
 	cp "$<" "$@"
 
-dist/b64lzma.js: src/b64lzma.js
+dist/b64lzma.js: src/Native/b64lzma.js
 	mkdir -p dist
 	cp "$<" "$@"
 

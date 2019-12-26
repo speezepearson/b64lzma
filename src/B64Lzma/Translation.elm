@@ -1,4 +1,4 @@
-port module B64Lzma exposing
+port module B64Lzma.Translation exposing
     ( B64Lzma(..)
     , Error(..)
     , EncodingRelation
@@ -52,13 +52,13 @@ port encodedPort : (E.Value -> msg) -> Sub msg
 encode : String -> Cmd msg
 encode plaintext =
     plaintext
-    |> Debug.log "b64lzma-encoding"
+    -- |> Debug.log "b64lzma-encoding"
     |> E.string
     |> encodePort
 decode : B64Lzma -> Cmd msg
 decode (B64Lzma s) =
     s
-    |> Debug.log "b64lzma-decoding"
+    -- |> Debug.log "b64lzma-decoding"
     |> E.string
     |> decodePort
 

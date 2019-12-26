@@ -1,4 +1,4 @@
-module Ittybitty.Fragments exposing
+module B64Lzma.Fragments exposing
     ( Fragment
     , build
     , unwrap
@@ -13,7 +13,7 @@ module Ittybitty.Fragments exposing
 
 import Regex
 import Url
-import B64Lzma exposing (B64Lzma(..))
+import B64Lzma.Translation exposing (B64Lzma(..))
 
 type alias RawFragment = { title : String, encodedBody : B64Lzma }
 
@@ -48,7 +48,9 @@ fragmentStringRegex : Regex.Regex
 fragmentStringRegex =
     case Regex.fromString "([^/]*)/\\??(.+)" of
         Just re -> re
-        Nothing -> Debug.todo "impossible"
+        Nothing ->
+            Regex.never
+            -- Debug.todo "impossible"
 
 parse : String -> Result ParseError Fragment
 parse s =
@@ -66,7 +68,8 @@ parse s =
                 (title, encodedBody) = case submatches of
                     [Nothing, Just b] -> ("", B64Lzma b)
                     [Just t, Just b] -> (decodeTitle t, B64Lzma b)
-                    _ -> Debug.todo "impossible: there must be two submatches"
+                    _ ->
+                        Debug.todo "impossible: there must be two submatches"
             in
                 Ok (build title encodedBody)
 
