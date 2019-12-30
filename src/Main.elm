@@ -63,51 +63,21 @@ type alias Model =
 
 init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-    startDecoding url
-        { key = key
-        , url = url
-        , title = ""
-        , body = NoFragment
-        , trusted = False
-        , pasteContentType = ContentTypeAuto
-        , interopConstants = flags.interopConstants
-        , showTrustToast = True
-        , errors = []
-        }
+    let
+        model =
+            { key = key
+            , url = url
+            , title = ""
+            , body = NoFragment
+            , trusted = False
+            , pasteContentType = ContentTypeAuto
+            , interopConstants = flags.interopConstants
+            , showTrustToast = True
+            , errors = []
+            }
+    in
+        update (UrlChanged url) model
 
-startDecoding : Url.Url -> Model -> ( Model, Cmd Msg )
-startDecoding url model =
-    case Fragments.parseUrl url of
-        Nothing ->
-            ( { model | url = url, body = NoFragment }
-            , Cmd.none
-            )
-        Just (Err e) ->
-            ( { model | url = url, errors = ("invalid fragment: " ++ Debug.toString e) :: model.errors }
-            , Cmd.none
-            )
-        Just (Ok fragment) ->
-            let
-                encodedBody : B64Lzma
-                encodedBody = Fragments.getEncodedBody fragment
-
-                bodyChanged : Bool
-                bodyChanged = case model.body of
-                    Stable relation -> (relation.encoded /= encodedBody)
-                    Decoding alreadyDecoding -> (alreadyDecoding /= encodedBody)
-                    _ -> True
-
-                (newBody, cmd) =
-                    if bodyChanged
-                        then (Decoding encodedBody, Translation.decode encodedBody)
-                        else (model.body, Cmd.none)
-            in
-                ( { model | url = url
-                          , title = Fragments.getTitle fragment
-                          , body = newBody
-                          }
-                , cmd
-                )
 
 
 -- adapted from https://github.com/marcosh/elm-html-to-unicode/blob/1.0.3/src/ElmEscapeHtml.elm
@@ -168,7 +138,37 @@ update msg model =
           ( model, Nav.load href )
 
     UrlChanged url ->
-        startDecoding (Debug.log "navigated to" url) model
+        case Fragments.parseUrl (Debug.log "transitioning to" url) of
+            Nothing ->
+                ( { model | url = url, body = NoFragment }
+                , Cmd.none
+                )
+            Just (Err e) ->
+                ( { model | url = url, errors = ("invalid fragment: " ++ Debug.toString e) :: model.errors }
+                , Cmd.none
+                )
+            Just (Ok fragment) ->
+                let
+                    encodedBody : B64Lzma
+                    encodedBody = Fragments.getEncodedBody fragment
+
+                    bodyChanged : Bool
+                    bodyChanged = case model.body of
+                        Stable relation -> (relation.encoded /= encodedBody)
+                        Decoding alreadyDecoding -> (alreadyDecoding /= encodedBody)
+                        _ -> True
+
+                    (newBody, cmd) =
+                        if bodyChanged
+                            then (Decoding encodedBody, Translation.decode encodedBody)
+                            else (model.body, Cmd.none)
+                in
+                    ( { model | url = url
+                              , title = Fragments.getTitle fragment
+                              , body = newBody
+                              }
+                    , cmd
+                    )
 
     Encoded (Err e) ->
         ( { model | errors = ("Error encoding: " ++ Debug.toString e) :: model.errors }
