@@ -7,8 +7,8 @@ import Url
 import Json.Decode as D
 import Json.Encode as E
 
-import B64Lzma.Translation as Translation exposing (B64Lzma(..))
 import Clipboard
+import B64Lzma.Translation as Translation exposing (B64Lzma(..))
 import B64Lzma.Fragments as Fragments exposing (Fragment)
 
 
