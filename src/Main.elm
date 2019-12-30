@@ -180,7 +180,7 @@ update msg model =
               if relation.plaintext == body
                 then
                     ( { model | body = Stable relation }
-                    , pushOrReplaceFragment model.key (Fragments.build model.title relation.encoded) model.url
+                    , pushOrReplaceFragment model.key (Fragments.wrap {title=model.title, encodedBody=relation.encoded}) model.url
                     )
                 else
                     ( model , Cmd.none )
@@ -230,7 +230,7 @@ update msg model =
 
     TitleAltered title ->
         ( { model | title = title }
-        , Nav.replaceUrl model.key (Url.toString (Fragments.mapUrl (\f -> Fragments.build title (Fragments.getEncodedBody f)) model.url))
+        , Nav.replaceUrl model.key (Url.toString (Fragments.mapUrl (\f -> Fragments.wrap {title=title, encodedBody=(Fragments.getEncodedBody f)}) model.url))
         )
 
     TrustToggled trusted ->

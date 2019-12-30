@@ -1,6 +1,7 @@
 module B64Lzma.Fragments exposing
     ( Fragment
-    , build
+    , RawFragment
+    , wrap
     , unwrap
     , getTitle
     , getEncodedBody
@@ -20,12 +21,8 @@ type alias RawFragment = { title : String, encodedBody : B64Lzma }
 type Fragment = Fragment RawFragment
 type ParseError = ParseError
 
-build : String -> B64Lzma -> Fragment
-build title encodedBody =
-    Fragment
-        { title = title
-        , encodedBody = encodedBody
-        }
+wrap : RawFragment -> Fragment
+wrap raw = Fragment raw
 
 unwrap : Fragment -> RawFragment
 unwrap (Fragment raw) = raw
@@ -71,7 +68,7 @@ parse s =
                     _ ->
                         Debug.todo "impossible: there must be two submatches"
             in
-                Ok (build title encodedBody)
+                Ok <| wrap {title=title, encodedBody=encodedBody}
 
 parseUrl : Url.Url -> Maybe (Result ParseError Fragment)
 parseUrl url =
