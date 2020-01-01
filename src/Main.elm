@@ -396,8 +396,10 @@ viewBody model =
                             ])
                         []
                     , text ", then share the URL!"]
-            Encoding _ -> grayCentered [text "encoding..."]
-            Decoding _ -> grayCentered [text "decoding..."]
+            Encoding s ->
+                grayCentered [text <| "encoding " ++ (s |> String.length |> toFloat |> (\n -> n/1000) |> round |> String.fromInt) ++ " kB..."]
+            Decoding (B64Lzma e) ->
+                grayCentered [text <| "decoding " ++ (e |> String.length |> toFloat |> (\n -> n/1000) |> round |> String.fromInt) ++ " kB..."]
             Stable {plaintext} ->
                 div [ style "text-align" "center", style "width" "100%", style "height" "100%" ]
                     [ if model.showTrustToast
