@@ -43,6 +43,7 @@ type BodyState
     | Encoding String
     | Decoding B64Lzma
     | Stable Translation.EncodingRelation
+    | TranslationFailed String
 
 type PasteContentType
     = ContentTypeText
@@ -57,7 +58,6 @@ type alias Model =
   , pasteContentType : PasteContentType
   , interopConstants : InteropConstants
   , showTrustToast : Bool
-  , errors: List String
   }
 
 init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -71,7 +71,6 @@ init flags url key =
             , pasteContentType = ContentTypeAuto
             , interopConstants = flags.interopConstants
             , showTrustToast = True
-            , errors = []
             }
     in
         update (UrlChanged url) model
@@ -107,7 +106,6 @@ type Msg
   | TrustToggled Bool
   | DismissTrustToast
   | PasteContentTypeToggled PasteContentType
-  | DismissErrors
   | Ignore
 
 pushOrReplaceRoute : Nav.Key -> Routes.Route -> Routes.Route -> Cmd msg
@@ -157,7 +155,7 @@ update msg model =
             )
 
     Encoded (Err e) ->
-        ( { model | errors = ("Error encoding: " ++ Debug.toString e) :: model.errors }
+        ( { model | body = TranslationFailed <| "Error encoding: " ++ Debug.toString e }
         , Cmd.none
         )
     Encoded (Ok relation) ->
@@ -176,7 +174,7 @@ update msg model =
             _ -> ( model, Cmd.none)
 
     Decoded (Err e) ->
-        ( { model | errors = ("Error decoding: " ++ Debug.toString e) :: model.errors }
+        ( { model | body = TranslationFailed <| "Error decoding: " ++ Debug.toString e }
         , Cmd.none
         )
     Decoded (Ok relation) ->
@@ -184,7 +182,7 @@ update msg model =
             Decoding encodedBody ->
                 if relation.encoded == encodedBody
                     then
-                        ( { model | body = Stable relation, errors=[] }
+                        ( { model | body = Stable relation }
                         , Cmd.none
                         )
                     else ( model , Cmd.none )
@@ -192,28 +190,28 @@ update msg model =
 
     UserPasted pastedData ->
         let
-            (body, errors) = case model.pasteContentType of
+            body = case model.pasteContentType of
                 ContentTypeText ->
                     case pastedData.plainText of
-                        Just raw -> (wrapInPre raw, [])
-                        Nothing -> ("", ["no plain text data in paste"])
+                        Just raw -> wrapInPre raw
+                        Nothing -> ""
                 ContentTypeHtml ->
                     case pastedData.html of
-                        Just h -> (h, [])
+                        Just h -> h
                         Nothing ->
                             case pastedData.plainText of
-                                Just raw -> (raw, ["no html data in paste; fell back to plain text"])
-                                Nothing -> ("", ["no html or plain text data in paste"])
+                                Just raw -> raw
+                                Nothing -> ""
 
                 ContentTypeAuto ->
                     case pastedData.html of
-                        Just h -> (h, [])
+                        Just h -> h
                         Nothing ->
                             case pastedData.plainText of
-                                Just raw -> (wrapInPre raw, [])
-                                Nothing -> ("", ["no html or plain text data in paste"])
+                                Just raw -> wrapInPre raw
+                                Nothing -> ""
         in
-            ( { model | body = Encoding body, errors = errors++model.errors }
+            ( { model | body = Encoding body }
             , Translation.encode body
             )
 
@@ -234,11 +232,6 @@ update msg model =
 
     PasteContentTypeToggled mode ->
         ( { model | pasteContentType = mode }
-        , Cmd.none
-        )
-
-    DismissErrors ->
-        ( { model | errors = [] }
         , Cmd.none
         )
 
@@ -297,7 +290,6 @@ view model =
     , body =
         [ fullpage
             [ viewHeader model
-            , viewErrors model
             , viewBody model
             ]
         ]
@@ -368,25 +360,19 @@ viewPasteInfo model =
     ]
 
 
-viewErrors : Model -> Html Msg
-viewErrors model =
-    if List.isEmpty model.errors
-        then text ""
-        else div [style "color" "purple", style "margin" "5px", style "border" "1px solid purple"]
-            [ text "Errors:"
-            , ul [] (List.map (\s -> li [] [text s]) model.errors)
-            , button [ onClick DismissErrors ] [text "Dismiss"]
-            ]
-
-
 viewBody : Model -> Html Msg
 viewBody model =
     let
-        grayCentered contents = div [ style "text-align" "center", style "width" "100%", style "color" "gray" ] contents
+        centeredAttrs =
+            [ style "text-align" "center"
+            , style "width" "100%"
+            ]
+        coloredCenteredAttrs : String -> List (Html.Attribute msg)
+        coloredCenteredAttrs color = style "color" color :: centeredAttrs
     in
         case model.body of
             NoFragment ->
-                grayCentered
+                div (coloredCenteredAttrs "gray")
                     [ text "No content yet; paste your desired content "
                     , input
                         (pasteFieldAttrs model.interopConstants.capturePasteClass ++
@@ -397,9 +383,11 @@ viewBody model =
                         []
                     , text ", then share the URL!"]
             Encoding s ->
-                grayCentered [text <| "encoding " ++ (s |> String.length |> toFloat |> (\n -> n/1000) |> round |> String.fromInt) ++ " kB..."]
+                div (coloredCenteredAttrs "gray") [text <| "encoding " ++ (s |> String.length |> toFloat |> (\n -> n/1000) |> round |> String.fromInt) ++ " kB..."]
             Decoding (B64Lzma e) ->
-                grayCentered [text <| "decoding " ++ (e |> String.length |> toFloat |> (\n -> n/1000) |> round |> String.fromInt) ++ " kB..."]
+                div (coloredCenteredAttrs "gray") [text <| "decoding " ++ (e |> String.length |> toFloat |> (\n -> n/1000) |> round |> String.fromInt) ++ " kB..."]
+            TranslationFailed err ->
+                div (coloredCenteredAttrs "purple") [text err]
             Stable {plaintext} ->
                 div [ style "text-align" "center", style "width" "100%", style "height" "100%" ]
                     [ if model.showTrustToast
