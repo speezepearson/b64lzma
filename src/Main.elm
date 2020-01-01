@@ -202,7 +202,7 @@ update msg model =
                         Just h -> (h, [])
                         Nothing ->
                             case pastedData.plainText of
-                                Just raw -> (wrapInPre raw, ["no html data in paste; fell back to plain text"])
+                                Just raw -> (raw, ["no html data in paste; fell back to plain text"])
                                 Nothing -> ("", ["no html or plain text data in paste"])
 
                 ContentTypeAuto ->
