@@ -337,6 +337,7 @@ viewPasteInfo model =
         (pasteFieldAttrs model.interopConstants.capturePasteClass ++
             [ placeholder "Paste here to set the page content."
             , style "width" "90%"
+            , id model.interopConstants.initAutofocusId
             ])
         []
     , details []
@@ -373,15 +374,7 @@ viewBody model =
         case model.body of
             NoFragment ->
                 div (coloredCenteredAttrs "gray")
-                    [ text "No content yet; paste your desired content "
-                    , input
-                        (pasteFieldAttrs model.interopConstants.capturePasteClass ++
-                            [ placeholder "here"
-                            , style "width" "3em"
-                            , id model.interopConstants.initAutofocusId
-                            ])
-                        []
-                    , text ", then share the URL!"]
+                    [ text "No content yet; paste your desired content, then share the URL!"]
             Encoding s ->
                 div (coloredCenteredAttrs "gray") [text <| "encoding " ++ (s |> String.length |> toFloat |> (\n -> n/1000) |> round |> String.fromInt) ++ " kB..."]
             Decoding (B64Lzma e) ->
