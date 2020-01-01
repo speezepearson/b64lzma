@@ -9,7 +9,7 @@ import Json.Encode as E
 
 import Clipboard
 import B64Lzma.Translation as Translation exposing (B64Lzma(..))
-import B64Lzma.Fragments as Fragments exposing (Fragment)
+import B64Lzma.Routes as Routes
 
 
 -- MAIN
@@ -51,8 +51,7 @@ type PasteContentType
 
 type alias Model =
   { key : Nav.Key
-  , url : Url.Url
-  , title : String
+  , route : Routes.Route
   , body : BodyState
   , trusted : Bool
   , pasteContentType : PasteContentType
@@ -66,8 +65,7 @@ init flags url key =
     let
         model =
             { key = key
-            , url = url
-            , title = ""
+            , route = Routes.parseUrl url
             , body = NoFragment
             , trusted = False
             , pasteContentType = ContentTypeAuto
@@ -112,19 +110,11 @@ type Msg
   | DismissErrors
   | Ignore
 
-pushOrReplaceFragment : Nav.Key -> Fragment -> Url.Url -> Cmd msg
-pushOrReplaceFragment key fragment url =
-    let
-        newUrl : Url.Url
-        newUrl = Fragments.addToUrl (Just fragment) url
-
-        pushOrReplace : Nav.Key -> String -> Cmd msg
-        pushOrReplace =
-            if url.fragment == Nothing
-                then Nav.pushUrl
-                else Nav.replaceUrl
-    in
-        pushOrReplace key (Url.toString newUrl)
+pushOrReplaceRoute : Nav.Key -> Routes.Route -> Routes.Route -> Cmd msg
+pushOrReplaceRoute key oldRoute newRoute =
+    if (oldRoute == Routes.indexRoute) /= (newRoute == Routes.indexRoute)
+        then Nav.pushUrl    key (Routes.toString newRoute)
+        else Nav.replaceUrl key (Routes.toString newRoute)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -138,37 +128,33 @@ update msg model =
           ( model, Nav.load href )
 
     UrlChanged url ->
-        case Fragments.parseUrl (Debug.log "transitioning to" url) of
-            Nothing ->
-                ( { model | url = url, body = NoFragment }
-                , Cmd.none
-                )
-            Just (Err e) ->
-                ( { model | url = url, errors = ("invalid fragment: " ++ Debug.toString e) :: model.errors }
-                , Cmd.none
-                )
-            Just (Ok fragment) ->
-                let
-                    encodedBody : B64Lzma
-                    encodedBody = Fragments.getEncodedBody fragment
+        let
+            newRoute : Routes.Route
+            newRoute = Routes.parseUrl url
 
-                    bodyChanged : Bool
-                    bodyChanged = case model.body of
-                        Stable relation -> (relation.encoded /= encodedBody)
-                        Decoding alreadyDecoding -> (alreadyDecoding /= encodedBody)
-                        _ -> True
+            alreadyDecoding : Maybe B64Lzma
+            alreadyDecoding =
+                case model.body of
+                    Stable {encoded} -> Just encoded
+                    Decoding encoded -> Just encoded
+                    _ -> Nothing
 
-                    (newBody, cmd) =
-                        if bodyChanged
-                            then (Decoding encodedBody, Translation.decode encodedBody)
-                            else (model.body, Cmd.none)
-                in
-                    ( { model | url = url
-                              , title = Fragments.getTitle fragment
-                              , body = newBody
-                              }
-                    , cmd
-                    )
+            (newBody, cmd) =
+                case (alreadyDecoding, newRoute.encodedBody) of
+                    (Just oldEncodedBody, Just newEncodedBody) ->
+                        if oldEncodedBody == newEncodedBody
+                            then (model.body, Cmd.none)
+                            else (Decoding newEncodedBody, Translation.decode newEncodedBody)
+                    (Nothing, Just newEncodedBody) ->
+                        (Decoding newEncodedBody, Translation.decode newEncodedBody)
+                    (_, Nothing) ->
+                        (NoFragment, Cmd.none)
+        in
+            ( { model | route = newRoute
+                      , body = newBody
+                      }
+            , cmd
+            )
 
     Encoded (Err e) ->
         ( { model | errors = ("Error encoding: " ++ Debug.toString e) :: model.errors }
@@ -177,14 +163,17 @@ update msg model =
     Encoded (Ok relation) ->
         case model.body of
             Encoding body ->
-              if relation.plaintext == body
-                then
-                    ( { model | body = Stable relation }
-                    , pushOrReplaceFragment model.key (Fragments.wrap {title=model.title, encodedBody=relation.encoded}) model.url
-                    )
-                else
-                    ( model , Cmd.none )
-            _ -> ( model , Cmd.none )
+                if relation.plaintext == body
+                    then
+                        ( { model | body = Stable relation }
+                        , pushOrReplaceRoute model.key model.route
+                            { title = getTitle model
+                            , encodedBody = Just relation.encoded
+                            }
+                        )
+                    else
+                        ( model , Cmd.none )
+            _ -> ( model, Cmd.none)
 
     Decoded (Err e) ->
         ( { model | errors = ("Error decoding: " ++ Debug.toString e) :: model.errors }
@@ -229,9 +218,14 @@ update msg model =
             )
 
     TitleAltered title ->
-        ( { model | title = title }
-        , Nav.replaceUrl model.key (Url.toString (Fragments.mapUrl (\f -> Fragments.wrap {title=title, encodedBody=(Fragments.getEncodedBody f)}) model.url))
-        )
+        let
+            newRoute =
+                model.route
+                |> Routes.setTitle (if String.isEmpty title then Nothing else Just title)
+        in
+            ( { model | route = newRoute }
+            , pushOrReplaceRoute model.key model.route newRoute
+            )
 
     TrustToggled trusted ->
         ( { model | trusted = trusted }
@@ -293,9 +287,13 @@ fullpage contents =
         ]
         contents
 
+getTitle : Model -> Maybe String
+getTitle model =
+    model.route.title
+
 view : Model -> Browser.Document Msg
 view model =
-    { title = if String.isEmpty model.title then "Base64-LZMA" else model.title
+    { title = getTitle model |> Maybe.withDefault "B64Lzma"
     , body =
         [ fullpage
             [ viewHeader model
@@ -315,7 +313,7 @@ viewHeader model =
         ]
         [ div [style "width" "30%"] []
         , div [style "width" "40%"] [textarea [ placeholder "Title"
-                                              , value model.title
+                                              , value (model.route.title |> Maybe.withDefault "")
                                               , style "text-align" "center"
                                               , style "font-weight" "700"
                                               , style "font-size" "1em"
