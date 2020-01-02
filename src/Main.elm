@@ -374,7 +374,9 @@ viewBody model =
         case model.body of
             NoFragment ->
                 div (coloredCenteredAttrs "gray")
-                    [ text "No content yet; paste your desired content, then share the URL!"]
+                    [ p [] [text "No content yet; paste your desired content, then share the URL!"]
+                    , p [] [a [href "/about"] [text "(about)"]]
+                    ]
             Encoding s ->
                 div (coloredCenteredAttrs "gray") [text <| "encoding " ++ (s |> String.length |> toFloat |> (\n -> n/1000) |> round |> String.fromInt) ++ " kB..."]
             Decoding (B64Lzma e) ->
