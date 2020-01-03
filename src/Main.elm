@@ -120,7 +120,7 @@ update msg model =
     LinkClicked urlRequest ->
       case urlRequest of
         Browser.Internal url ->
-          ( model, Nav.pushUrl model.key (Url.toString url) )
+          ( model, Nav.load (Url.toString url) )
 
         Browser.External href ->
           ( model, Nav.load href )
@@ -375,7 +375,7 @@ viewBody model =
             NoFragment ->
                 div (coloredCenteredAttrs "gray")
                     [ p [] [text "No content yet; paste your desired content, then share the URL!"]
-                    , p [] [a [href "/about"] [text "(about)"]]
+                    , p [] [a [href "about.html"] [text "(about)"]]
                     ]
             Encoding s ->
                 div (coloredCenteredAttrs "gray") [text <| "encoding " ++ (s |> String.length |> toFloat |> (\n -> n/1000) |> round |> String.fromInt) ++ " kB..."]
