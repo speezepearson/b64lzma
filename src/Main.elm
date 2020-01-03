@@ -54,6 +54,7 @@ type alias Model =
   { key : Nav.Key
   , route : Routes.Route
   , body : BodyState
+  , titleField : String
   , trusted : Bool
   , pasteContentType : PasteContentType
   , interopConstants : InteropConstants
@@ -63,10 +64,12 @@ type alias Model =
 init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
+        route = Routes.parseUrl url
         model =
             { key = key
-            , route = Routes.parseUrl url
+            , route = route
             , body = NoFragment
+            , titleField = ""
             , trusted = False
             , pasteContentType = ContentTypeAuto
             , interopConstants = flags.interopConstants
@@ -150,6 +153,7 @@ update msg model =
         in
             ( { model | route = newRoute
                       , body = newBody
+                      , titleField = newRoute.title |> Maybe.withDefault ""
                       }
             , cmd
             )
@@ -165,7 +169,7 @@ update msg model =
                     then
                         ( { model | body = Stable relation }
                         , pushOrReplaceRoute model.key model.route
-                            { title = getTitle model
+                            { title = Just model.titleField
                             , encodedBody = Just relation.encoded
                             }
                         )
@@ -211,7 +215,7 @@ update msg model =
                                 Just raw -> wrapInPre raw
                                 Nothing -> ""
         in
-            ( { model | body = Encoding body }
+            ( { model | titleField = "", body = Encoding body }
             , Translation.encode body
             )
 
@@ -221,7 +225,7 @@ update msg model =
                 model.route
                 |> Routes.setTitle (if String.isEmpty title then Nothing else Just title)
         in
-            ( { model | route = newRoute }
+            ( { model | titleField=title, route = newRoute }
             , pushOrReplaceRoute model.key model.route newRoute
             )
 
@@ -280,13 +284,9 @@ fullpage contents =
         ]
         contents
 
-getTitle : Model -> Maybe String
-getTitle model =
-    model.route.title
-
 view : Model -> Browser.Document Msg
 view model =
-    { title = getTitle model |> Maybe.withDefault "B64Lzma"
+    { title = model.route.title |> Maybe.withDefault "B64Lzma"
     , body =
         [ fullpage
             [ viewHeader model
@@ -305,7 +305,7 @@ viewHeader model =
         ]
         [ div [style "width" "30%"] []
         , div [style "width" "40%"] [textarea [ placeholder "Title"
-                                              , value (model.route.title |> Maybe.withDefault "")
+                                              , value model.titleField
                                               , style "text-align" "center"
                                               , style "font-weight" "700"
                                               , style "font-size" "1em"
