@@ -32,13 +32,15 @@ flattenMaybe = Maybe.andThen identity
 parseUrl : Url.Url -> Route
 parseUrl url =
     let
+        urlWithoutPath = { url | path = "" } -- hack to ignore path -- https://github.com/elm/url/issues/17#issuecomment-482947419
+
         parser : P.Parser (Maybe String -> a) a
         parser =
             P.query (PQ.string titleQueryParamName)
 
         title : Maybe String
         title =
-            P.parse parser url |> flattenMaybe
+            P.parse parser urlWithoutPath |> flattenMaybe
 
         encodedBody : Maybe B64Lzma
         encodedBody =
@@ -51,7 +53,7 @@ parseUrl url =
 toString : Route -> String
 toString route =
     B.custom
-        B.Absolute
+        B.Relative
         []
         (case route.title of
             Nothing -> []
